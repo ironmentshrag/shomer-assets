@@ -1,0 +1,48 @@
+name: fetch-polyhaven
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download CC0 assets from Poly Haven
+        run: |
+          python3 - <<'PY'
+          import json, os, hashlib, urllib.request, datetime
+          UA = {'User-Agent': 'shomer-assets/1.0 (github actions)'}
+          def get(u): return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=90).read()
+          def js(u): return json.loads(get(u))
+          man = {'source': 'https://polyhaven.com', 'license': 'CC0-1.0', 'license_url': 'https://polyhaven.com/license', 'fetched': datetime.datetime.utcnow().isoformat() + 'Z', 'files': []}
+          def save(path, url, aid, kind):
+              b = get(url); os.makedirs(os.path.dirname(path), exist_ok=True); open(path, 'wb').write(b)
+              man['files'].append({'path': path, 'url': url, 'asset': aid, 'page': 'https://polyhaven.com/a/' + aid, 'kind': kind, 'bytes': len(b), 'sha256': hashlib.sha256(b).hexdigest()})
+              print('saved', path, len(b))
+          def top(t, cats, n):
+              for c in cats:
+                  a = js(f'https://api.polyhaven.com/assets?t={t}&c={c}')
+                  if a: return sorted(a.items(), key=lambda kv: -kv[1].get('download_count', 0))[:n]
+              return []
+          for aid, _ in top('hdris', ['sunrise-sunset', 'outdoor'], 3):
+              f = js(f'https://api.polyhaven.com/files/{aid}')
+              save(f'hdri/{aid}_2k.hdr', f['hdri']['2k']['hdr']['url'], aid, 'hdri')
+          MAPS = {'diff': ['Diffuse', 'diff'], 'nor': ['nor_gl', 'Normal'], 'rough': ['Rough', 'rough'], 'ao': ['AO', 'ao']}
+          for cat, n in [('concrete', 2), ('asphalt', 1), ('metal', 1), ('rock', 1)]:
+              for aid, _ in top('textures', [cat], n):
+                  f = js(f'https://api.polyhaven.com/files/{aid}')
+                  for short, keys in MAPS.items():
+                      k = next((k for k in keys if k in f), None)
+                      if not k: continue
+                      node = f[k].get('1k', {}).get('jpg')
+                      if node: save(f'textures/{cat}/{aid}/{short}_1k.jpg', node['url'], aid, 'texture')
+          open('manifest.json', 'w').write(json.dumps(man, indent=1))
+          print('total files', len(man['files']), 'bytes', sum(x['bytes'] for x in man['files']))
+          PY
+      - name: Commit
+        run: |
+          git config user.name assets-bot
+          git config user.email assets-bot@users.noreply.github.com
+          git add -A
+          git commit -m "fetch polyhaven $(date -u +%F)" || echo "nothing to commit"
+          git push
