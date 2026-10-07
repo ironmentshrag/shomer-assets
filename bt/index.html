@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IRON BT דפדפן</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column, status strip on top, one big action, raw log below */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#14181f; --muted:#5b6575; --line:#d7dde6;
+  --accent:#0a6cff; --ok:#11804a; --bad:#c62b2b; --warn:#a66300;
+  --display:"Heebo",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0c1016; --surface:#141a23; --fg:#e3e9f2; --muted:#93a0b4; --line:#263042;
+  --accent:#5aa2ff; --ok:#4ccf8a; --bad:#ff6b6b; --warn:#f0b04a; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--display);
+  padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}
+main{max-width:640px;margin:0 auto;display:grid;gap:14px}
+h1{font-size:1.35rem;font-weight:800;margin:0;letter-spacing:.01em}
+.sub{color:var(--muted);margin:0;font-size:.9rem}
+.strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.chip b{display:block;font-size:.7rem;color:var(--muted);font-weight:600;letter-spacing:.04em}
+.chip span{font-family:var(--mono);font-size:.85rem;font-weight:600}
+.ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:14px;cursor:pointer}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.primary{background:var(--accent);color:#fff;font-size:1.05rem}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{flex:1 1 120px;background:var(--surface);color:var(--fg);border:1px solid var(--line);font-weight:600}
+.battery{display:none;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;align-items:center;gap:14px}
+.battery.on{display:flex}
+.battery .num{font-family:var(--mono);font-size:2.4rem;font-weight:600;font-variant-numeric:tabular-nums}
+pre{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;
+  font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;direction:ltr;text-align:left;
+  max-height:55vh;overflow:auto}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>IRON BT דפדפן</h1>
+    <p class="sub">בודק מה דף אינטרנט מצליח לקרוא ממכשיר בלוטוס, בלי אפליקציה.</p>
+  </div>
+
+  <div class="strip">
+    <div class="chip"><b>ממשק בלוטוס</b><span id="sApi">…</span></div>
+    <div class="chip"><b>הקשר מאובטח</b><span id="sSec">…</span></div>
+    <div class="chip"><b>בלוטוס זמין</b><span id="sAvail">…</span></div>
+  </div>
+
+  <button class="primary" id="go">בחר מכשיר וקרא</button>
+
+  <div class="battery" id="bat"><div class="num" id="batNum">--%</div><div id="batName" class="sub"></div></div>
+
+  <div class="row">
+    <button id="copy">העתק דוח</button>
+    <button id="known">מכשירים שאושרו בעבר</button>
+    <button id="clear">נקה</button>
+  </div>
+
+  <pre id="log" aria-live="polite"></pre>
+</main>
+
+<script>
+const VER = "IRON BT WEB v0.1";
+const $ = id => document.getElementById(id);
+const out = $("log");
+function log(s){ out.textContent += s + "\n"; out.scrollTop = out.scrollHeight; }
+function hex(dv){ let s=""; for(let i=0;i<dv.byteLength;i++) s+=dv.getUint8(i).toString(16).padStart(2,"0").toUpperCase(); return s; }
+function txt(dv){ try{ return new TextDecoder().decode(dv).replace(/\0+$/,""); }catch(e){ return ""; } }
+function set(id, ok, label){ const el=$(id); el.textContent=label; el.className = ok===true?"ok":ok===false?"bad":"warn"; }
+
+const NAMES = {
+  "00001800":"Generic Access","00001801":"Generic Attribute","0000180a":"Device Information","0000180f":"Battery Service",
+  "00001844":"Volume Control","00001846":"CSIS (earbud set)","0000184e":"LE Audio ASCS","00001850":"LE Audio PACS",
+  "0000fe2c":"Google Fast Pair","00002a00":"DeviceName","00002a29":"Manufacturer","00002a24":"ModelNumber",
+  "00002a25":"Serial","00002a26":"Firmware","00002a27":"Hardware","00002a28":"Software","00002a50":"PnP_ID","00002a19":"BATTERY %"
+};
+const nm = u => NAMES[u.slice(0,8)] || (u.endsWith("00025b00a5a5") ? "Qualcomm/CSR vendor (GAIA?)" : "");
+
+// Web Bluetooth only exposes services listed here. Standard ones + vendor ids seen in the app report.
+const OPTIONAL = [
+  "generic_access","device_information","battery_service",0x1844,0x1846,0x184e,0x1850,0xfe2c,0x1801,
+  "0000eb04-d102-11e1-9b23-00025b00a5a5","0000eb05-d102-11e1-9b23-00025b00a5a5",
+  "0000eb06-d102-11e1-9b23-00025b00a5a5","0000eb07-d102-11e1-9b23-00025b00a5a5",
+  "00001100-d102-11e1-9b23-00025b00a5a5","0cf12d31-fac3-4553-bd80-d6832e7b3936"
+];
+
+async function status(){
+  log(VER + " · " + new Date().toLocaleString("he-IL"));
+  log("UA: " + navigator.userAgent);
+  const api = !!navigator.bluetooth;
+  set("sApi", api, api ? "קיים" : "חסר");
+  set("sSec", window.isSecureContext, window.isSecureContext ? "כן" : "לא");
+  log("navigator.bluetooth=" + api + " secureContext=" + window.isSecureContext + " inIframe=" + (window.top!==window.self));
+  if(!api){ set("sAvail", false, "—"); log("הדפדפן לא חושף בלוטוס. צריך כרום באנדרואיד, דף פתוח ישירות (לא בתוך אפליקציה אחרת)."); return; }
+  try{ const a = await navigator.bluetooth.getAvailability(); set("sAvail", a, a?"כן":"כבוי"); log("getAvailability=" + a); }
+  catch(e){ set("sAvail", null, "?"); log("getAvailability ERR " + e.name + ": " + e.message); }
+}
+
+async function readAll(device){
+  log("\n# " + (device.name || "(ללא שם)") + "  id=" + device.id);
+  device.addEventListener("gattserverdisconnected", () => log("[" + device.name + "] disconnected"));
+  let server;
+  try{ server = await device.gatt.connect(); log("gatt connected=" + server.connected); }
+  catch(e){ log("gatt.connect ERR " + e.name + ": " + e.message + "\n→ המכשיר לא מקבל חיבור מדפדפן (כנראה קלאסי בלבד, או תפוס)."); return; }
+  let services = [];
+  try{ services = await server.getPrimaryServices(); }
+  catch(e){ log("getPrimaryServices ERR " + e.name + ": " + e.message); }
+  log("services visible to page: " + services.length);
+  for(const s of services){
+    log("svc " + s.uuid + " " + nm(s.uuid));
+    let chars = [];
+    try{ chars = await s.getCharacteristics(); }catch(e){ log("  chars ERR " + e.name + ": " + e.message); continue; }
+    for(const c of chars){
+      const p = Object.entries(c.properties).filter(([k,v])=>v===true).map(([k])=>k).join(",");
+      let line = "  ch " + c.uuid.slice(0,8) + " " + nm(c.uuid) + " [" + p + "]";
+      if(c.properties.read){
+        try{
+          const v = await c.readValue();
+          if(c.uuid.startsWith("00002a19")){
+            const pct = v.getUint8(0); line += " = " + pct + "%";
+            $("batNum").textContent = pct + "%"; $("batName").textContent = device.name || ""; $("bat").classList.add("on");
+          } else {
+            const t = txt(v); line += " = " + (t && /^[\x20-\x7e]+$/.test(t) ? '"' + t + '" ' : "") + "hex=" + hex(v);
+          }
+        }catch(e){ line += " read ERR " + e.name + ": " + e.message; }
+      }
+      log(line);
+      if(c.uuid.startsWith("00002a19") && c.properties.notify){
+        try{
+          await c.startNotifications();
+          c.addEventListener("characteristicvaluechanged", ev => {
+            const pct = ev.target.value.getUint8(0);
+            $("batNum").textContent = pct + "%";
+            log("[battery notify] " + pct + "% · " + new Date().toLocaleTimeString("he-IL"));
+          });
+          log("  ↳ battery notifications on");
+        }catch(e){ log("  notify ERR " + e.name); }
+      }
+    }
+  }
+  log("— done —");
+}
+
+$("go").addEventListener("click", async () => {
+  if(!navigator.bluetooth){ log("אין ממשק בלוטוס בדפדפן הזה."); return; }
+  try{
+    const d = await navigator.bluetooth.requestDevice({ acceptAllDevices:true, optionalServices:OPTIONAL });
+    await readAll(d);
+  }catch(e){
+    log("requestDevice: " + e.name + ": " + e.message +
+      (e.name==="NotFoundError" ? "\n→ בוטל, או שהמכשיר לא הופיע ברשימה (מכשיר קלאסי לא יופיע בכלל)." : "") +
+      (e.name==="SecurityError" ? "\n→ הדף רץ במסגרת שחוסמת בלוטוס. פתח את הכתובת ישירות בכרום." : ""));
+  }
+});
+
+$("known").addEventListener("click", async () => {
+  if(!navigator.bluetooth || !navigator.bluetooth.getDevices){ log("getDevices לא נתמך בדפדפן הזה."); return; }
+  try{
+    const ds = await navigator.bluetooth.getDevices();
+    log("\nמכשירים שאושרו לדף בעבר: " + ds.length);
+    for(const d of ds) log("- " + (d.name||"(ללא שם)") + " id=" + d.id);
+  }catch(e){ log("getDevices ERR " + e.name + ": " + e.message); }
+});
+
+$("copy").addEventListener("click", async () => {
+  try{ await navigator.clipboard.writeText(out.textContent); $("copy").textContent = "הועתק"; }
+  catch(e){ const r=document.createRange(); r.selectNodeContents(out); const s=getSelection(); s.removeAllRanges(); s.addRange(r); $("copy").textContent = "סומן, העתק ידנית"; }
+  setTimeout(()=>{$("copy").textContent="העתק דוח";},1800);
+});
+$("clear").addEventListener("click", () => { out.textContent=""; status(); });
+
+status();
+</script>
+</body>
+</html>
