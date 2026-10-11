@@ -76,8 +76,8 @@ canvas{width:100%;height:84px;display:block;border-radius:8px;background:var(--b
     <h2>2 · תמלול</h2>
     <div class="row">
       <select id="size" aria-label="גודל מודל">
-        <option value="fast">קל · כ־760MB הורדה ראשונה</option>
-        <option value="best" selected>מדויק · כ־1.6GB הורדה ראשונה</option>
+        <option value="fast" selected>טלפון · כ־760MB הורדה ראשונה</option>
+        <option value="best">מחשב בלבד · כ־1.6GB, עלול לקרוס בטלפון</option>
       </select>
       <button class="primary" id="go" disabled>תמלל</button>
     </div>
@@ -137,7 +137,7 @@ $("file").addEventListener("change", async e => {
     const buf = await f.arrayBuffer();
     const c1 = new AudioContext(); src = await c1.decodeAudioData(buf.slice(0)); c1.close();
     const c2 = new AudioContext({ sampleRate: 16000 }); src16 = await c2.decodeAudioData(buf.slice(0)); c2.close();
-    $("fileinfo").textContent = `${f.name} · ${fmt(src.duration)} · ${src.sampleRate}Hz`;
+    $("fileinfo").textContent = `\u2068${f.name}\u2069 · ${fmt(src.duration)} · ${src.sampleRate}Hz`;
     $("go").disabled = false;
   } catch (err) { $("fileinfo").textContent = "לא הצלחתי לפענח את הקובץ: " + err.message; }
 });

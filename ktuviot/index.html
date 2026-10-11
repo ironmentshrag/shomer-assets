@@ -78,8 +78,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
     <h2>2 · תמלול</h2>
     <div class="row">
       <select id="size" aria-label="גודל מודל">
-        <option value="fast">קל · כ־760MB פעם ראשונה</option>
-        <option value="best" selected>מדויק · כ־1.6GB פעם ראשונה</option>
+        <option value="fast" selected>טלפון · כ־760MB פעם ראשונה</option>
+        <option value="best">מחשב בלבד · כ־1.6GB, עלול לקרוס בטלפון</option>
       </select>
       <button class="primary" id="go" disabled>תמלל</button>
       <label class="filebtn" for="wjson" style="background:var(--panel);color:var(--ink);border-color:var(--line)">ייבוא מילים מעורך הקול<input id="wjson" type="file" accept=".json,application/json"></label>
@@ -170,7 +170,7 @@ $("file").addEventListener("change", async e => {
     const c1 = new AudioContext(); srcFull = await c1.decodeAudioData(buf.slice(0)); c1.close();
     const c2 = new AudioContext({sampleRate:16000}); src16 = await c2.decodeAudioData(buf.slice(0)); c2.close();
   } catch { srcFull = null; src16 = null; }
-  $("fileinfo").textContent = `${file.name} · ${vid.videoWidth}×${vid.videoHeight} · ${fmt(vid.duration)}` + (srcFull ? "" : " · בלי פס קול");
+  $("fileinfo").textContent = `\u2068${file.name}\u2069 · ${vid.videoWidth}×${vid.videoHeight} · ${fmt(vid.duration)}` + (srcFull ? "" : " · בלי פס קול");
   $("go").disabled = !src16;
   drawAt(0);
 });
