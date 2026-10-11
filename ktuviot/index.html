@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IRON כתוביות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Rubik:wght@800;900&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* פריסה: תצוגת סרטון אנכית צמודה למעלה, שלבים מתחת, פס פעולה דביק בתחתית */
+:root{
+  --bg:#f2f0ec; --panel:#fbfaf7; --ink:#1c1a17; --muted:#6b665f; --line:#dbd6ce;
+  --accent:#c4421a; --accent-ink:#fff; --cut:#c4421a26; --cut-ink:#9c3a1f; --sel:#1f6f5c;
+  --f-display:"Secular One","Assistant",system-ui,sans-serif;
+  --f-body:"Assistant",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#161412; --panel:#1f1c19; --ink:#efe9e2; --muted:#a39b92; --line:#38332e;
+  --accent:#ec6a3f; --accent-ink:#1a0e08; --cut:#ec6a3f33; --cut-ink:#f29a7a; --sel:#5cc2a7; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#161412; --panel:#1f1c19; --ink:#efe9e2; --muted:#a39b92; --line:#38332e;
+  --accent:#ec6a3f; --accent-ink:#1a0e08; --cut:#ec6a3f33; --cut-ink:#f29a7a; --sel:#5cc2a7; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.6 var(--f-body);padding:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(110px + env(safe-area-inset-bottom,0px))}
+main{max-width:760px;margin:0 auto;display:grid;gap:16px}
+h1{font:400 30px/1.15 var(--f-display);margin:0;text-wrap:balance}
+h1 small{display:block;font:500 13px/1.4 var(--f-mono);color:var(--muted);margin-top:6px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;min-width:0}
+.step h2{margin:0;font:700 15px/1.3 var(--f-body);color:var(--muted);letter-spacing:.4px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,.filebtn,select,input[type=text]{font:600 16px/1 var(--f-body);border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:12px 14px;min-height:46px}
+button,.filebtn{cursor:pointer}
+button.primary,.filebtn{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,select:focus-visible,input:focus-visible,.filebtn:focus-within{outline:3px solid var(--sel);outline-offset:2px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+input[type=text]{flex:1;min-width:0;font-weight:400}
+label.rng{display:grid;gap:4px;font-size:14px;color:var(--muted);flex:1;min-width:140px}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.meta{font:500 13px/1.5 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.err{color:var(--cut-ink);font-weight:700}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.stage{display:grid;justify-items:center}
+#view{width:100%;max-width:340px;aspect-ratio:9/16;height:auto;background:#000;border-radius:10px;display:block}
+#words{font-size:19px;line-height:2.1;word-break:break-word;max-height:46vh;overflow:auto;padding:4px}
+#words .w{border-radius:5px;padding:1px 3px;cursor:pointer}
+#words .w.cut{background:var(--cut);color:var(--cut-ink);text-decoration:line-through;text-decoration-thickness:2px}
+#words .w.sel{outline:2px solid var(--sel)}
+#words .w.now{background:color-mix(in srgb,var(--sel) 22%,transparent)}
+#words .brk{display:block;height:4px}
+.seg3{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg3 button{border:0;border-radius:0;min-height:44px}
+.seg3 button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.dock{position:fixed;inset-inline:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.dock .row{max-width:760px;margin:0 auto;justify-content:space-between}
+.note{font-size:14px;color:var(--muted);margin:0}
+@media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>IRON כתוביות<small>כתוביות מונפשות בעברית · חיתוך שתיקות · זום · הכל בטלפון</small></h1></header>
+
+  <section class="step">
+    <h2>1 · סרטון</h2>
+    <div class="row">
+      <label class="filebtn" for="file">בחר סרטון<input id="file" type="file" accept="video/*"></label>
+      <span class="meta" id="fileinfo">עוד לא נבחר סרטון</span>
+    </div>
+  </section>
+
+  <section class="step">
+    <h2>2 · תמלול</h2>
+    <div class="row">
+      <select id="size" aria-label="גודל מודל">
+        <option value="fast">קל · כ־760MB פעם ראשונה</option>
+        <option value="best" selected>מדויק · כ־1.6GB פעם ראשונה</option>
+      </select>
+      <button class="primary" id="go" disabled>תמלל</button>
+      <label class="filebtn" for="wjson" style="background:var(--panel);color:var(--ink);border-color:var(--line)">ייבוא מילים מעורך הקול<input id="wjson" type="file" accept=".json,application/json"></label>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="prog"></i></div>
+    <div class="meta" id="status">המודל יורד פעם אחת ונשמר בדפדפן. מומלץ Wi-Fi.</div>
+  </section>
+
+  <section class="step" id="s3" hidden>
+    <h2>3 · עריכה וסגנון</h2>
+    <div class="stage"><canvas id="view" width="540" height="960" aria-label="תצוגה מקדימה"></canvas></div>
+    <div class="row">
+      <div class="seg3" role="group" aria-label="מה עושה לחיצה על מילה">
+        <button id="mCut" aria-pressed="true">לחיצה מוחקת</button>
+        <button id="mFix" aria-pressed="false">לחיצה מתקנת</button>
+        <button id="mGo" aria-pressed="false">לחיצה קופצת</button>
+      </div>
+    </div>
+    <div class="row" id="fixbar" hidden>
+      <input type="text" id="fixtxt" aria-label="תיקון המילה">
+      <button id="fixok">שמור</button>
+    </div>
+    <div id="words"></div>
+    <div class="row">
+      <button id="fillers">חתוך מילות מילוי</button>
+      <button id="silence">חתוך שתיקות</button>
+      <button id="reset">בטל חיתוכים</button>
+    </div>
+    <div class="row">
+      <select id="style" aria-label="סגנון כתוביות">
+        <option value="iron">IRON · צהוב קופץ</option>
+        <option value="box">קופסה · רקע כהה</option>
+        <option value="clean">נקי · לבן עם צל</option>
+      </select>
+      <select id="per" aria-label="מילים בשורה">
+        <option value="1">מילה אחת</option>
+        <option value="2">2 מילים</option>
+        <option value="3" selected>עד 3 מילים</option>
+        <option value="5">עד 5 מילים</option>
+      </select>
+      <select id="zoom" aria-label="זום">
+        <option value="0">בלי זום</option>
+        <option value="1" selected>זום עדין</option>
+        <option value="2">זום חזק</option>
+      </select>
+    </div>
+    <div class="row">
+      <label class="rng">גובה הכתוביות<input type="range" id="ypos" min="35" max="88" value="70"></label>
+      <label class="rng">גודל<input type="range" id="fsize" min="5" max="14" value="8.5" step=".5"></label>
+    </div>
+    <p class="note">הזום לא עוקב אחרי פנים. הוא מתקרב למרכז העליון של התמונה בכל פתיחת שורה.</p>
+    <div class="meta" id="stats"></div>
+  </section>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="row">
+    <button id="play">▶ תצוגה</button>
+    <span class="meta" id="clock">0:00</span>
+    <button class="primary" id="render">צור MP4</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
+<script type="module">
+const MODEL = "instush/ivrit-whisper-large-v3-turbo-timestamped-onnx";
+const DTYPES = { fast:{encoder_model:"q4",decoder_model_merged:"q4"}, best:{encoder_model:"fp16",decoder_model_merged:"q4"} };
+const FILLERS = new Set(["אמ","אממ","אמממ","אה","אהה","אההה","הממ","ממ","מממ","אהמ","אמם","אממממ"]);
+const STYLES = {
+  iron:{ font:"900 {S}px Rubik, 'Secular One', sans-serif", fill:"#ffffff", stroke:"#000000", sw:.16, hi:"#FFD400", box:null, shadow:0 },
+  box: { font:"800 {S}px Rubik, 'Secular One', sans-serif", fill:"#ffffff", stroke:null, sw:0, hi:"#7CF2C6", box:"rgba(0,0,0,.72)", shadow:0 },
+  clean:{ font:"800 {S}px Rubik, 'Secular One', sans-serif", fill:"#ffffff", stroke:null, sw:0, hi:"#ffffff", box:null, shadow:1, under:true },
+};
+const $ = id => document.getElementById(id);
+let vid = null, file = null, src16 = null, srcFull = null, words = [], mode = "cut", sel = -1, tookSec = 0, lines = [], keep = [], running = null;
+
+const fmt = s => { s = Math.max(0,s); const m=Math.floor(s/60), r=Math.floor(s%60); return m+":"+String(r).padStart(2,"0"); };
+const status = (t,err) => { $("status").textContent=t; $("status").className="meta"+(err?" err":""); };
+
+/* ---------- 1. קובץ ---------- */
+$("file").addEventListener("change", async e => {
+  file = e.target.files[0]; if (!file) return;
+  $("fileinfo").textContent = "טוען…";
+  vid = document.createElement("video"); vid.playsInline = true; vid.muted = true; vid.preload = "auto"; vid.src = URL.createObjectURL(file);
+  await new Promise((ok,bad) => { vid.onloadeddata = ok; vid.onerror = () => bad(new Error("הדפדפן לא מצליח לפתוח את הסרטון")); });
+  try {
+    const buf = await file.arrayBuffer();
+    const c1 = new AudioContext(); srcFull = await c1.decodeAudioData(buf.slice(0)); c1.close();
+    const c2 = new AudioContext({sampleRate:16000}); src16 = await c2.decodeAudioData(buf.slice(0)); c2.close();
+  } catch { srcFull = null; src16 = null; }
+  $("fileinfo").textContent = `${file.name} · ${vid.videoWidth}×${vid.videoHeight} · ${fmt(vid.duration)}` + (srcFull ? "" : " · בלי פס קול");
+  $("go").disabled = !src16;
+  drawAt(0);
+});
+function mono(b){ const n=b.length,o=new Float32Array(n); for(let c=0;c<b.numberOfChannels;c++){const d=b.getChannelData(c);for(let i=0;i<n;i++)o[i]+=d[i]/b.numberOfChannels;} return o; }
+
+/* ---------- 2. תמלול ---------- */
+$("go").addEventListener("click", async () => {
+  if (!navigator.gpu) { status("הדפדפן הזה בלי WebGPU. פתח בכרום עדכני.", true); return; }
+  $("go").disabled = true; let wake=null; try{ wake = await navigator.wakeLock?.request("screen"); }catch{}
+  const files = {};
+  try {
+    status("טוען מודל…");
+    const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
+    env.allowLocalModels = false;
+    const asr = await pipeline("automatic-speech-recognition", MODEL, { device:"webgpu", dtype:DTYPES[$("size").value],
+      progress_callback: p => { if (p.status==="progress" && p.total){ files[p.file]=[p.loaded,p.total]; let L=0,T=0; for(const k in files){L+=files[k][0];T+=files[k][1];}
+        $("prog").style.width=(100*L/T).toFixed(1)+"%"; status(`מוריד מודל ${(L/1e6).toFixed(0)} / ${(T/1e6).toFixed(0)}MB`); } } });
+    $("prog").style.width="100%"; status("מתמלל…");
+    const t0 = performance.now();
+    const out = await asr(mono(src16), { language:"he", task:"transcribe", chunk_length_s:30, stride_length_s:5, return_timestamps:"word" });
+    tookSec = (performance.now()-t0)/1000;
+    setWords((out.chunks||[]).map((c,i,a)=>{ const s=c.timestamp[0] ?? (a[i-1]?.timestamp[1] ?? 0); const e=c.timestamp[1] ?? s+.4; return {t:c.text.trim(), s, e:Math.max(e,s+.05)}; }));
+    status(`הסתיים: ${words.length} מילים ב־${tookSec.toFixed(0)} שניות`);
+  } catch (err) { console.error(err); status("נכשל: "+(err.message||err), true); $("go").disabled=false; }
+  try{ wake?.release(); }catch{}
+});
+$("wjson").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const j = JSON.parse(await f.text()); const w = j.words || j; if (!Array.isArray(w) || !w.length || w[0].s===undefined) throw new Error("bad");
+    setWords(w); status(`יובאו ${words.length} מילים`); }
+  catch { status("הקובץ לא נראה כמו קובץ מילים של עורך הקול", true); }
+});
+function setWords(w){
+  words = w.filter(x=>x.t && x.t.trim()).map(x=>({ t:x.t.trim(), s:+(+x.s).toFixed(3), e:+(+x.e).toFixed(3), cut:!!x.cut }));
+  $("s3").hidden=false; $("dock").hidden=false; rebuild();
+}
+
+/* ---------- 3. עריכה ---------- */
+function renderList(){
+  const box=$("words"); box.textContent="";
+  let li=0;
+  words.forEach((w,i)=>{
+    if (li<lines.length && lines[li].idx[0]===i && i>0) box.appendChild(Object.assign(document.createElement("span"),{className:"brk"}));
+    while (li<lines.length && lines[li].idx[lines[li].idx.length-1] < i) li++;
+    const sp=document.createElement("span"); sp.className="w"+(w.cut?" cut":"")+(i===sel?" sel":""); sp.textContent=w.t; sp.dataset.i=i;
+    box.appendChild(sp); box.appendChild(document.createTextNode(" "));
+  });
+}
+$("words").addEventListener("click", e=>{
+  const el=e.target.closest(".w"); if(!el) return; const i=+el.dataset.i;
+  if (mode==="cut"){ words[i].cut=!words[i].cut; rebuild(); }
+  else if (mode==="fix"){ sel=i; $("fixbar").hidden=false; $("fixtxt").value=words[i].t; $("fixtxt").focus(); renderList(); }
+  else { stopRun(); drawAt(words[i].s); }
+});
+$("fixok").onclick=()=>{ if(sel<0) return; const v=$("fixtxt").value.trim(); if(v) words[sel].t=v; else words[sel].cut=true; sel=-1; $("fixbar").hidden=true; rebuild(); };
+$("fixtxt").addEventListener("keydown",e=>{ if(e.key==="Enter") $("fixok").click(); });
+for (const [id,m] of [["mCut","cut"],["mFix","fix"],["mGo","go"]]) $(id).onclick=()=>{ mode=m; for(const k of ["mCut","mFix","mGo"]) $(k).setAttribute("aria-pressed", k===id?"true":"false"); if(m!=="fix"){ sel=-1; $("fixbar").hidden=true; renderList(); } };
+$("fillers").onclick=()=>{ let n=0; words.forEach(w=>{ if(FILLERS.has(w.t.replace(/[.,!?…\-"]/g,""))){ w.cut=true; n++; } }); rebuild(); status(`נחתכו ${n} מילות מילוי`); };
+$("silence").onclick=()=>{ silenceCut=true; rebuild(); status("שתיקות של יותר מ־0.6 שניות נחתכו"); };
+$("reset").onclick=()=>{ words.forEach(w=>w.cut=false); silenceCut=false; rebuild(); };
+for (const id of ["style","per","zoom","ypos","fsize"]) $(id).addEventListener("input",()=>{ if(id==="per") rebuild(); else if(!running) drawAt(lastT); });
+let silenceCut=false;
+
+/* שורות כתוביות: עד N מילים, שבירה בשתיקה או בסימן פיסוק */
+function buildLines(){
+  const N=+$("per").value, L=[]; let cur=null;
+  words.forEach((w,i)=>{ if(w.cut) return;
+    const gap = cur ? w.s - words[cur.idx[cur.idx.length-1]].e : 0;
+    if (!cur || cur.idx.length>=N || gap>0.6 || /[.?!,]$/.test(words[cur.idx[cur.idx.length-1]].t) || (cur.chars+w.t.length>22 && cur.idx.length>0)){
+      cur={idx:[],chars:0}; L.push(cur); }
+    cur.idx.push(i); cur.chars+=w.t.length+1; });
+  L.forEach(l=>{ l.s=words[l.idx[0]].s; });
+  L.forEach((l,k)=>{ const e=words[l.idx[l.idx.length-1]].e; const nx=L[k+1]?L[k+1].s:Infinity; l.e=Math.min(nx, e+0.35); l.k=k; });
+  return L;
+}
+/* קטעים שנשארים: בלי מילים חתוכות, ואם ביקשו בלי שתיקות ארוכות */
+function buildKeep(){
+  const D = vid ? vid.duration : (words.at(-1)?.e||0), cuts=[];
+  const add=(s,e)=>{ if(e-s<0.02) return; if(cuts.length && s-cuts.at(-1)[1]<0.02) cuts.at(-1)[1]=Math.max(cuts.at(-1)[1],e); else cuts.push([s,e]); };
+  const live = words.map((w,i)=>i).filter(i=>!words[i].cut);
+  words.forEach((w,i)=>{ if(w.cut){ const nx=words[i+1]; add(w.s, nx&&nx.cut ? nx.s : w.e); } });
+  if (silenceCut && live.length){
+    const P=0.15; add(0, Math.max(0,words[live[0]].s-P));
+    for(let k=1;k<live.length;k++){ const a=words[live[k-1]].e, b=words[live[k]].s; if(b-a>0.6) add(a+P, b-P); }
+    add(words[live.at(-1)].e+P+0.2, D);
+  }
+  cuts.sort((a,b)=>a[0]-b[0]);
+  const m=[]; for(const c of cuts){ if(m.length && c[0]<=m.at(-1)[1]) m.at(-1)[1]=Math.max(m.at(-1)[1],c[1]); else m.push([...c]); }
+  const K=[]; let p=0; for(const [s,e] of m){ if(s>p) K.push([p,s]); p=Math.max(p,e); } if(p<D) K.push([p,D]);
+  return K.filter(([a,b])=>b-a>0.05);
+}
+function rebuild(){ lines=buildLines(); keep=buildKeep(); renderList(); stats(); if(!running) drawAt(lastT); }
+function stats(){ const kd=keep.reduce((n,[a,b])=>n+b-a,0); $("stats").textContent=`${words.length} מילים · ${lines.length} שורות · אורך ${fmt(kd)} מתוך ${fmt(vid?vid.duration:0)}`; }
+
+/* ---------- ציור פריים ---------- */
+const view=$("view"), vctx=view.getContext("2d");
+let lastT=0;
+function lineAt(t){ for(const l of lines) if(t>=l.s && t<l.e) return l; return null; }
+function zoomAt(t){
+  const z=+$("zoom").value; if(!z) return 1; const l=lineAt(t); if(!l || l.k%2) return 1;
+  const u=Math.min(1,(t-l.s)/0.25), amp=z===1?0.05:0.11; return 1+amp*(1-Math.pow(1-u,3));
+}
+function drawFrame(g, W, H, t){
+  g.fillStyle="#000"; g.fillRect(0,0,W,H);
+  if (vid && vid.readyState>=2){
+    const vw=vid.videoWidth, vh=vid.videoHeight, sc=Math.max(W/vw,H/vh)*zoomAt(t);
+    const dw=vw*sc, dh=vh*sc, cx=W/2, cy=H*0.42;
+    g.drawImage(vid, cx-dw/2, cy-dh*0.42, dw, dh);
+  }
+  const l=lineAt(t); if(!l) return;
+  const st=STYLES[$("style").value], S=Math.round(W*(+$("fsize").value)/100), y=H*(+$("ypos").value)/100;
+  g.save(); g.direction="rtl"; g.textBaseline="middle"; g.font=st.font.replace("{S}",S); g.lineJoin="round";
+  const ws=l.idx.map(i=>words[i]), gapW=S*0.28, widths=ws.map(w=>g.measureText(w.t).width);
+  const maxW=W*0.86; let rows=[[]], rw=[0];
+  ws.forEach((w,j)=>{ const add=widths[j]+(rows.at(-1).length?gapW:0); if(rw.at(-1)+add>maxW && rows.at(-1).length){ rows.push([]); rw.push(0); } rows.at(-1).push(j); rw[rw.length-1]+=widths[j]+(rows.at(-1).length>1?gapW:0); });
+  const lh=S*1.22, y0=y-(rows.length-1)*lh/2;
+  const pop=Math.min(1,(t-l.s)/0.12);
+  rows.forEach((r,ri)=>{
+    let x=W/2+rw[ri]/2; const yy=y0+ri*lh;
+    if (st.box){ g.fillStyle=st.box; const p=S*0.28; roundRect(g, W/2-rw[ri]/2-p, yy-lh/2, rw[ri]+2*p, lh, S*0.22); g.fill(); }
+    r.forEach(j=>{ const w=ws[j], wd=widths[j], active = t>=w.s && t<w.e+0.08, cx=x-wd/2;
+      const s = active ? 1+0.10*Math.sin(Math.min(1,(t-w.s)/0.14)*Math.PI) + 0.06 : 1;
+      g.save(); g.translate(cx,yy); g.scale(s*(0.9+0.1*pop), s*(0.9+0.1*pop)); g.textAlign="center";
+      if (st.shadow){ g.shadowColor="rgba(0,0,0,.75)"; g.shadowBlur=S*0.35; g.shadowOffsetY=S*0.06; }
+      if (st.stroke){ g.lineWidth=S*st.sw; g.strokeStyle=st.stroke; g.strokeText(w.t,0,0); }
+      g.fillStyle = active ? st.hi : st.fill; g.fillText(w.t,0,0);
+      if (st.under && active){ g.shadowBlur=0; g.fillStyle=st.hi; g.fillRect(-wd/2, S*0.55, wd, S*0.09); }
+      g.restore(); x-=wd+gapW; });
+  });
+  g.restore();
+}
+function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+async function drawAt(t){ lastT=t; if(vid && Math.abs(vid.currentTime-t)>0.03){ vid.currentTime=t; await new Promise(r=>vid.addEventListener("seeked",r,{once:true})); } drawFrame(vctx,view.width,view.height,t); hiNow(t); }
+function hiNow(t){ const el=$("words"); el.querySelector(".now")?.classList.remove("now"); const i=words.findIndex(w=>!w.cut && t>=w.s && t<w.e); if(i>=0) el.querySelector(`.w[data-i="${i}"]`)?.classList.add("now"); }
+
+/* ---------- ניגון קטעים (תצוגה ורינדור באותה לולאה) ---------- */
+function stopRun(){ if(running){ running.stop=true; } }
+async function runRanges(onFrame, {realtimeAudio}={}){
+  let outOff=0, ac=null, srcNode=null;
+  const r = running = {stop:false};
+  if (realtimeAudio && srcFull){ ac=new AudioContext(); }
+  for (const [a,b] of keep){
+    if (r.stop) break;
+    vid.currentTime=a; await new Promise(ok=>vid.addEventListener("seeked",ok,{once:true}));
+    onFrame(a, outOff);
+    if (ac){ srcNode=ac.createBufferSource(); srcNode.buffer=srcFull; srcNode.connect(ac.destination); srcNode.start(0,a,b-a); }
+    await vid.play();
+    await new Promise(done=>{
+      const step=(now,meta)=>{
+        const t=meta.mediaTime;
+        if (r.stop || t>=b-0.001 || vid.ended){ vid.pause(); done(); return; }
+        onFrame(t, outOff + (t-a));
+        vid.requestVideoFrameCallback(step);
+      };
+      vid.requestVideoFrameCallback(step);
+    });
+    try{ srcNode?.stop(); }catch{}
+    outOff += b-a;
+  }
+  try{ ac?.close(); }catch{}
+  if (running===r) running=null;
+  return outOff;
+}
+$("play").onclick=async()=>{
+  if (running){ stopRun(); return; }
+  $("play").textContent="■ עצור";
+  await runRanges((t,o)=>{ lastT=t; drawFrame(vctx,view.width,view.height,t); $("clock").textContent=fmt(o); hiNow(t); }, {realtimeAudio:true});
+  $("play").textContent="▶ תצוגה";
+};
+
+/* ---------- 4. רינדור MP4 ---------- */
+function editedAudio(){
+  if (!srcFull) return null;
+  const sr=srcFull.sampleRate, X=Math.round(0.01*sr), n=keep.reduce((s,[a,b])=>s+Math.round((b-a)*sr),0), out=new Float32Array(n), m=mono(srcFull); let o=0;
+  for (const [a,b] of keep){ const i0=Math.round(a*sr), k=Math.round((b-a)*sr); for(let j=0;j<k;j++){ const g=Math.min(1,j/X,(k-1-j)/X); out[o+j]=(m[i0+j]||0)*(keep.length>1?g:1); } o+=k; }
+  return {data:out, sr};
+}
+async function pickVideoCfg(W,H){
+  for (const [codec,mux] of [["avc1.640028","avc"],["avc1.42E028","avc"],["vp09.00.40.08","vp9"]]){
+    const c={codec,width:W,height:H,bitrate:Math.round(W*H*30*0.12),framerate:30,hardwareAcceleration:"prefer-hardware"};
+    try{ if((await VideoEncoder.isConfigSupported(c)).supported) return [c,mux]; }catch{}
+    delete c.hardwareAcceleration; try{ if((await VideoEncoder.isConfigSupported(c)).supported) return [c,mux]; }catch{}
+  }
+  throw new Error("אין מקודד וידאו בדפדפן הזה");
+}
+async function pickAudioCfg(sr){
+  for (const [codec,mux] of [["mp4a.40.2","aac"],["opus","opus"]]){
+    const rate = mux==="opus" ? 48000 : sr; const c={codec,sampleRate:rate,numberOfChannels:1,bitrate:128000};
+    try{ if((await AudioEncoder.isConfigSupported(c)).supported) return [c,mux]; }catch{}
+  }
+  return null;
+}
+function resample(d, from, to){ if(from===to) return d; const n=Math.floor(d.length*to/from), o=new Float32Array(n), r=from/to; for(let i=0;i<n;i++){ const x=i*r, k=Math.floor(x), f=x-k; o[i]=(d[k]||0)*(1-f)+(d[k+1]||0)*f; } return o; }
+
+$("render").onclick=async()=>{
+  if (!vid || !words.length) return;
+  stopRun(); $("render").disabled=true; $("play").disabled=true;
+  let wake=null; try{ wake=await navigator.wakeLock?.request("screen"); }catch{}
+  try{
+    const vw=vid.videoWidth, vh=vid.videoHeight, portrait=vh>=vw;
+    let W = portrait ? Math.min(1080, vw) : 1080; W -= W%2; const H = Math.round(W*16/9/2)*2;
+    const cv=new OffscreenCanvas(W,H), g=cv.getContext("2d");
+    const [vcfg,vmux]=await pickVideoCfg(W,H);
+    const au=editedAudio(); const acfg = au ? await pickAudioCfg(au.sr) : null;
+    const muxer=new Mp4Muxer.Muxer({ target:new Mp4Muxer.ArrayBufferTarget(), fastStart:"in-memory",
+      video:{codec:vmux,width:W,height:H},
+      ...(acfg ? {audio:{codec:acfg[1],numberOfChannels:1,sampleRate:acfg[0].sampleRate}} : {}) });
+    let err=null, nOut=0;
+    const venc=new VideoEncoder({ output:(c,m)=>{ if(m?.decoderConfig && !m.decoderConfig.colorSpace?.primaries) m={...m,decoderConfig:{...m.decoderConfig,colorSpace:{primaries:'bt709',transfer:'bt709',matrix:'bt709',fullRange:false}}}; try{ muxer.addVideoChunk(c,m); }catch(x){ if(!err){ err=x; console.warn('META',x.message, c.timestamp, c.type); } } nOut++; }, error:e=>err=e }); venc.configure(vcfg);
+    const total=keep.reduce((s,[a,b])=>s+b-a,0); let nIn=0, lastOut=-1;
+    status("מרנדר… הסרטון מתנגן פעם אחת בזמן אמת");
+    await runRanges((t,o)=>{
+      if (o<=lastOut+0.004) return; lastOut=o;
+      drawFrame(g,W,H,t);
+      const f=new VideoFrame(cv,{timestamp:Math.round(o*1e6)});
+      venc.encode(f,{keyFrame: nIn%60===0}); f.close(); nIn++;
+      if (nIn%10===0){ $("prog").style.width=(100*o/total).toFixed(1)+"%"; drawFrame(vctx,view.width,view.height,t); }
+    });
+    await venc.flush(); venc.close(); if(err) throw err;
+    if (acfg){
+      const data=resample(au.data, au.sr, acfg[0].sampleRate), sr=acfg[0].sampleRate;
+      const aenc=new AudioEncoder({ output:(c,m)=>muxer.addAudioChunk(c,m), error:e=>err=e }); aenc.configure(acfg[0]);
+      const F=1024; for(let i=0;i<data.length;i+=F){ const p=data.subarray(i,Math.min(data.length,i+F));
+        aenc.encode(new AudioData({format:"f32-planar",sampleRate:sr,numberOfFrames:p.length,numberOfChannels:1,timestamp:Math.round(i/sr*1e6),data:p})); }
+      await aenc.flush(); aenc.close(); if(err) throw err;
+    }
+    muxer.finalize();
+    const blob=new Blob([muxer.target.buffer],{type:"video/mp4"});
+    window.__lastRender={frames:nIn,out:nOut,W,H,codec:vcfg.codec,audio:acfg?acfg[1]:"none",dur:total,bytes:blob.size};
+    $("prog").style.width="100%";
+    status(`מוכן: ${nIn} פריימים · ${W}×${H} · ${(blob.size/1e6).toFixed(1)}MB`);
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=(file.name.replace(/\.[^.]+$/,"")||"video")+"_captions.mp4"; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},5000);
+  }catch(e){ console.error(e); status("הרינדור נכשל: "+(e.message||e), true); }
+  try{ wake?.release(); }catch{}
+  $("render").disabled=false; $("play").disabled=false;
+};
+
+addEventListener("load", ()=>{ document.fonts?.load("900 40px Rubik"); document.fonts?.load("800 40px Rubik"); });
+window.__test = w => setWords(w);
+window.__dbg = t => ({line: lineAt(t), n: lines.length, first: lines[0]});
+window.__state = () => ({ vid: !!vid && vid.readyState, words: words.length, lines: lines.length, keep });
+</script>
+</body>
+</html>
