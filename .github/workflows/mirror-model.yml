@@ -1,0 +1,23 @@
+name: mirror-model
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/mirror-model.yml']
+permissions:
+  contents: write
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download ivrit-ai turbo (CTranslate2) from Hugging Face
+        run: |
+          pip install -q huggingface_hub
+          python -c "from huggingface_hub import snapshot_download as s; s('ivrit-ai/whisper-large-v3-turbo-ct2', local_dir='m')"
+          ls -la m
+          cd m && tar cf ../ivrit-turbo-ct2.tar . && cd .. && split -b 1900M ivrit-turbo-ct2.tar ivrit-turbo-ct2.tar.part- && ls -la
+      - name: Publish as release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete models-ivrit -y --cleanup-tag -R ${{ github.repository }} || true
+          gh release create models-ivrit ivrit-turbo-ct2.tar.part-* -R ${{ github.repository }} -t "ivrit-ai whisper turbo ct2 mirror" -n "Mirror of ivrit-ai/whisper-large-v3-turbo-ct2 (Apache-2.0)"
