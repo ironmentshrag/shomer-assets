@@ -399,7 +399,14 @@ $("render").onclick=async()=>{
     await venc.flush(); venc.close(); if(err) throw err;
     if (acfg){
       const data=resample(au.data, au.sr, acfg[0].sampleRate), sr=acfg[0].sampleRate;
-      const aenc=new AudioEncoder({ output:(c,m)=>muxer.addAudioChunk(c,m), error:e=>err=e }); aenc.configure(acfg[0]);
+      // מקודד AAC מוסיף 2 מסגרות "פתיחה" (2048 דגימות, נמדד 42.5ms בגלקסי). זורקים אותן כדי שהקול לא יאחר את התמונה
+      const DROP = acfg[1]==="aac" ? 2 : 0, shift = DROP*1024/sr*1e6; let k=0, meta0=null;
+      const aenc=new AudioEncoder({ output:(c,m)=>{
+        if (k<DROP){ if(m?.decoderConfig && !meta0) meta0=m; k++; return; }
+        if (DROP){ const b=new Uint8Array(c.byteLength); c.copyTo(b);
+          c=new EncodedAudioChunk({type:c.type, timestamp:Math.max(0,c.timestamp-shift), duration:c.duration, data:b});
+          if (k===DROP && meta0 && !m?.decoderConfig) m=meta0; }
+        k++; muxer.addAudioChunk(c,m); }, error:e=>err=e }); aenc.configure(acfg[0]);
       const F=1024; for(let i=0;i<data.length;i+=F){ const p=data.subarray(i,Math.min(data.length,i+F));
         aenc.encode(new AudioData({format:"f32-planar",sampleRate:sr,numberOfFrames:p.length,numberOfChannels:1,timestamp:Math.round(i/sr*1e6),data:p})); }
       await aenc.flush(); aenc.close(); if(err) throw err;
