@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IRON עורך קול</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Secular+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* פריסה: עמודה אחת צרה כמו שולחן עריכה; רצועת גל קול למעלה, טקסט ערוך מתחת, פקדים דביקים בתחתית */
+:root{
+  --bg:#f3f1ee; --panel:#fbfaf8; --ink:#1d1b19; --muted:#6d6862; --line:#dcd7d0;
+  --accent:#c4421a; --accent-ink:#ffffff; --cut:#c4421a26; --cut-ink:#9c3a1f; --play:#1f6f5c; --wave:#3b3733;
+  --f-display:"Secular One","Assistant",system-ui,sans-serif;
+  --f-body:"Assistant",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#171513; --panel:#201d1a; --ink:#efe9e2; --muted:#a39b92; --line:#38332e;
+  --accent:#ec6a3f; --accent-ink:#1a0e08; --cut:#ec6a3f33; --cut-ink:#f29a7a; --play:#5cc2a7; --wave:#cfc6bb; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#171513; --panel:#201d1a; --ink:#efe9e2; --muted:#a39b92; --line:#38332e;
+  --accent:#ec6a3f; --accent-ink:#1a0e08; --cut:#ec6a3f33; --cut-ink:#f29a7a; --play:#5cc2a7; --wave:#cfc6bb; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.6 var(--f-body);padding:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(120px + env(safe-area-inset-bottom,0px))}
+main{max-width:760px;margin:0 auto;display:grid;gap:18px}
+h1{font:400 30px/1.15 var(--f-display);margin:0;letter-spacing:.2px;text-wrap:balance}
+h1 small{display:block;font:500 13px/1.4 var(--f-mono);color:var(--muted);letter-spacing:.3px;margin-top:6px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.step h2{margin:0;font:700 15px/1.3 var(--f-body);color:var(--muted);letter-spacing:.4px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,.filebtn,select{font:600 16px/1 var(--f-body);border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:12px 14px;cursor:pointer;min-height:46px}
+button.primary,.filebtn{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,select:focus-visible,.filebtn:focus-within{outline:3px solid var(--play);outline-offset:2px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.meta{font:500 13px/1.5 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+#status{min-height:1.6em}
+.err{color:var(--cut-ink);font-weight:700}
+canvas{width:100%;height:84px;display:block;border-radius:8px;background:var(--bg)}
+#words{font-size:20px;line-height:2.1;word-break:break-word}
+#words .w{border-radius:5px;padding:1px 2px;cursor:pointer}
+#words .w.cut{background:var(--cut);color:var(--cut-ink);text-decoration:line-through;text-decoration-thickness:2px}
+#words .w.now{outline:2px solid var(--play);background:color-mix(in srgb,var(--play) 18%,transparent)}
+#words .w.low{border-bottom:2px dotted var(--muted)}
+#words .seg{display:block;margin-top:6px}
+#words .ts{font:500 12px/1 var(--f-mono);color:var(--muted);margin-inline-end:6px;user-select:none}
+.mode{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mode button{border:0;border-radius:0;min-height:44px}
+.mode button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.dock{position:fixed;inset-inline:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.dock .row{max-width:760px;margin:0 auto;justify-content:space-between}
+.note{font-size:14px;color:var(--muted);margin:0}
+@media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>IRON עורך קול<small>תמלול עברי ועריכה דרך הטקסט · רץ בטלפון שלך · ivrit.ai</small></h1>
+  </header>
+
+  <section class="step" id="s1">
+    <h2>1 · הקלטה</h2>
+    <div class="row">
+      <label class="filebtn" for="file">בחר קובץ קול<input id="file" type="file" accept="audio/*,video/*,.m4a,.opus,.ogg,.mp3,.wav"></label>
+      <span class="meta" id="fileinfo">עוד לא נבחר קובץ</span>
+    </div>
+  </section>
+
+  <section class="step" id="s2">
+    <h2>2 · תמלול</h2>
+    <div class="row">
+      <select id="size" aria-label="גודל מודל">
+        <option value="fast">קל · כ־760MB הורדה ראשונה</option>
+        <option value="best" selected>מדויק · כ־1.6GB הורדה ראשונה</option>
+      </select>
+      <button class="primary" id="go" disabled>תמלל</button>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="prog"></i></div>
+    <div class="meta" id="status">ההורדה קורית פעם אחת ונשמרת בדפדפן. מומלץ Wi-Fi.</div>
+  </section>
+
+  <section class="step" id="s3" hidden>
+    <h2>3 · עריכה</h2>
+    <canvas id="wave" aria-label="גל הקול. אזורים צבועים נחתכו"></canvas>
+    <div class="row">
+      <div class="mode" role="group" aria-label="מה עושה לחיצה על מילה">
+        <button id="mCut" aria-pressed="true">לחיצה מוחקת</button>
+        <button id="mPlay" aria-pressed="false">לחיצה מנגנת</button>
+      </div>
+      <button id="fillers">סמן מילות מילוי</button>
+      <button id="reset">בטל מחיקות</button>
+    </div>
+    <div id="words"></div>
+    <p class="note">מילה עם קו מנוקד: המודל לא בטוח בה. כדאי להאזין לה.</p>
+    <div class="row">
+      <button id="copy">העתק טקסט</button>
+      <button id="dlTxt">הורד טקסט</button>
+      <button id="dlJson">הורד קובץ מילים</button>
+      <button class="primary" id="dlAudio">הורד קול ערוך</button>
+    </div>
+    <div class="meta" id="stats"></div>
+  </section>
+</main>
+
+<div class="dock" id="dock" hidden>
+  <div class="row">
+    <button class="primary" id="play">▶ נגן ערוך</button>
+    <span class="meta" id="clock">0:00 / 0:00</span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
+<script type="module">
+import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
+env.allowLocalModels = false;
+const MODEL = "instush/ivrit-whisper-large-v3-turbo-timestamped-onnx";
+const DTYPES = { fast:{encoder_model:"q4",decoder_model_merged:"q4"}, best:{encoder_model:"fp16",decoder_model_merged:"q4"} };
+const FILLERS = new Set(["אמ","אממ","אמממ","אה","אהה","אההה","הממ","ממ","מממ","אהמ","אמם"]);
+const $ = id => document.getElementById(id);
+let src = null, src16 = null, fileName = "", words = [], mode = "cut", tookSec = 0;
+let ctx = null, playing = null, edited = null, map = [];
+
+const fmt = s => { s = Math.max(0, s); const m = Math.floor(s/60), r = Math.floor(s%60); return m+":"+String(r).padStart(2,"0"); };
+const status = (t, err) => { $("status").textContent = t; $("status").className = "meta" + (err ? " err" : ""); };
+
+$("file").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  fileName = f.name.replace(/\.[^.]+$/, "");
+  $("fileinfo").textContent = "מפענח…";
+  try {
+    const buf = await f.arrayBuffer();
+    const c1 = new AudioContext(); src = await c1.decodeAudioData(buf.slice(0)); c1.close();
+    const c2 = new AudioContext({ sampleRate: 16000 }); src16 = await c2.decodeAudioData(buf.slice(0)); c2.close();
+    $("fileinfo").textContent = `${f.name} · ${fmt(src.duration)} · ${src.sampleRate}Hz`;
+    $("go").disabled = false;
+  } catch (err) { $("fileinfo").textContent = "לא הצלחתי לפענח את הקובץ: " + err.message; }
+});
+
+function mono(b){ const n=b.length, out=new Float32Array(n); for(let c=0;c<b.numberOfChannels;c++){ const d=b.getChannelData(c); for(let i=0;i<n;i++) out[i]+=d[i]/b.numberOfChannels; } return out; }
+
+$("go").addEventListener("click", async () => {
+  if (!navigator.gpu) { status("הדפדפן הזה בלי WebGPU. פתח בכרום עדכני בטלפון.", true); return; }
+  $("go").disabled = true; let wake = null;
+  try { wake = await navigator.wakeLock?.request("screen"); } catch {}
+  const files = {};
+  const onProg = p => {
+    if (p.status === "progress" && p.total) { files[p.file] = [p.loaded, p.total];
+      let L=0,T=0; for (const k in files){ L+=files[k][0]; T+=files[k][1]; }
+      $("prog").style.width = (100*L/T).toFixed(1)+"%"; status(`מוריד מודל ${(L/1e6).toFixed(0)} / ${(T/1e6).toFixed(0)}MB`); }
+  };
+  try {
+    status("טוען מודל…");
+    const asr = await pipeline("automatic-speech-recognition", MODEL, { device:"webgpu", dtype: DTYPES[$("size").value], progress_callback: onProg });
+    $("prog").style.width = "100%";
+    status("מתמלל… זה לוקח בערך כמו אורך ההקלטה או פחות");
+    const t0 = performance.now();
+    const out = await asr(mono(src16), { language:"he", task:"transcribe", chunk_length_s:30, stride_length_s:5, return_timestamps:"word" });
+    tookSec = (performance.now()-t0)/1000;
+    words = (out.chunks||[]).map((c,i,a) => {
+      const s = c.timestamp[0] ?? (a[i-1]?.timestamp[1] ?? 0);
+      let e = c.timestamp[1] ?? Math.min(src.duration, s+0.4);
+      return { t:c.text.trim(), s:+s.toFixed(3), e:+Math.max(e, s+0.05).toFixed(3), cut:false };
+    }).filter(w => w.t);
+    status(`הסתיים: ${words.length} מילים ב־${tookSec.toFixed(0)} שניות`);
+    render(); $("s3").hidden = false; $("dock").hidden = false;
+  } catch (err) { console.error(err); status("נכשל: " + (err.message||err), true); $("go").disabled = false; }
+  try { wake?.release(); } catch {}
+});
+
+function render(){
+  const box = $("words"); box.textContent = "";
+  let seg = null, lastE = -9;
+  words.forEach((w,i) => {
+    if (!seg || w.s - lastE > 1.2) { seg = document.createElement("span"); seg.className = "seg";
+      const ts = document.createElement("span"); ts.className = "ts"; ts.textContent = fmt(w.s); seg.appendChild(ts); box.appendChild(seg); }
+    const sp = document.createElement("span"); sp.className = "w" + (w.cut?" cut":"") + ((w.e-w.s) < 0.08 || (w.e-w.s) > 2.5 ? " low" : "");
+    sp.textContent = w.t; sp.dataset.i = i; seg.appendChild(sp); seg.appendChild(document.createTextNode(" "));
+    lastE = w.e;
+  });
+  drawWave(); stats();
+}
+$("words").addEventListener("click", e => {
+  const el = e.target.closest(".w"); if (!el) return; const i = +el.dataset.i;
+  if (mode === "cut") { words[i].cut = !words[i].cut; el.classList.toggle("cut", words[i].cut); edited = null; drawWave(); stats(); }
+  else playFrom(words[i].s, true);
+});
+$("mCut").onclick = () => { mode="cut"; $("mCut").setAttribute("aria-pressed","true"); $("mPlay").setAttribute("aria-pressed","false"); };
+$("mPlay").onclick = () => { mode="play"; $("mPlay").setAttribute("aria-pressed","true"); $("mCut").setAttribute("aria-pressed","false"); };
+$("fillers").onclick = () => { let n=0; words.forEach(w => { if (FILLERS.has(w.t.replace(/[.,!?…\-]/g,""))) { w.cut = true; n++; } }); edited=null; render(); status(`סומנו ${n} מילות מילוי`); };
+$("reset").onclick = () => { words.forEach(w => w.cut=false); edited=null; render(); };
+
+// קטעים שנשארים: משלים של מילים מחוקות, כשמחיקות סמוכות מתאחדות כולל הרווח ביניהן
+function keepRanges(){
+  const D = src.duration, cuts = [];
+  words.forEach((w,i) => { if (!w.cut) return;
+    const s = w.s, e = (i+1<words.length && words[i+1].cut) ? words[i+1].s : w.e;
+    if (cuts.length && s - cuts[cuts.length-1][1] < 0.02) cuts[cuts.length-1][1] = e; else cuts.push([s,e]); });
+  const keep = []; let p = 0; for (const [s,e] of cuts){ if (s>p) keep.push([p,s]); p = Math.max(p,e); } if (p<D) keep.push([p,D]);
+  return keep.filter(([a,b]) => b-a > 0.01);
+}
+function buildEdited(){
+  if (edited) return edited;
+  const sr = src.sampleRate, ch = src.numberOfChannels, K = keepRanges(), X = Math.round(0.012*sr);
+  const total = K.reduce((n,[a,b]) => n + Math.round((b-a)*sr), 0);
+  const out = new AudioBuffer({ length: Math.max(1,total), numberOfChannels: ch, sampleRate: sr });
+  map = []; let o = 0;
+  for (const [a,b] of K){ const i0 = Math.round(a*sr), n = Math.round((b-a)*sr); map.push([o/sr, a, b]);
+    for (let c=0;c<ch;c++){ const s = src.getChannelData(c), d = out.getChannelData(c);
+      for (let k=0;k<n;k++){ const g = Math.min(1, k/X, (n-1-k)/X); d[o+k] = s[i0+k]*(K.length>1 ? g : 1); } }
+    o += n; }
+  return edited = out;
+}
+const outToSrc = t => { for (let i=map.length-1;i>=0;i--) if (t >= map[i][0]) return map[i][1] + (t-map[i][0]); return 0; };
+const srcToOut = t => { for (const [o,a,b] of map) if (t>=a && t<b) return o + (t-a); for (const [o,a] of map) if (a>t) return o; return 0; };
+
+function stop(){ if (playing){ try{ playing.node.stop(); }catch{} cancelAnimationFrame(playing.raf); playing=null; } $("play").textContent="▶ נגן ערוך"; document.querySelectorAll(".w.now").forEach(e=>e.classList.remove("now")); }
+async function playFrom(srcT){
+  stop(); ctx ??= new AudioContext(); await ctx.resume();
+  const b = buildEdited(), off = srcToOut(srcT), node = ctx.createBufferSource(); node.buffer = b; node.connect(ctx.destination);
+  const t0 = ctx.currentTime - off; node.start(0, off); node.onended = () => { if (playing?.node===node) stop(); };
+  playing = { node, raf:0 }; $("play").textContent = "■ עצור";
+  let last = -1; const els = $("words").querySelectorAll(".w");
+  const tick = () => { const t = ctx.currentTime - t0, s = outToSrc(t);
+    $("clock").textContent = fmt(t) + " / " + fmt(b.duration);
+    let i = words.findIndex(w => !w.cut && s >= w.s && s < w.e + 0.05);
+    if (i !== last){ els[last]?.classList.remove("now"); if (i>=0){ els[i].classList.add("now"); } last = i; }
+    playing && (playing.raf = requestAnimationFrame(tick)); };
+  tick();
+}
+$("play").onclick = () => playing ? stop() : playFrom(0);
+
+function drawWave(){
+  const cv = $("wave"), dpr = devicePixelRatio||1, W = cv.clientWidth*dpr, H = cv.clientHeight*dpr; cv.width = W; cv.height = H;
+  const g = cv.getContext("2d"), cs = getComputedStyle(document.documentElement), d = src.getChannelData(0), D = src.duration, step = Math.max(1, Math.floor(d.length/W));
+  g.clearRect(0,0,W,H); g.fillStyle = cs.getPropertyValue("--cut");
+  for (const w of words) if (w.cut){ const x0 = W - (w.e/D)*W, x1 = W - (w.s/D)*W; g.fillRect(x0,0,Math.max(1,x1-x0),H); }
+  g.fillStyle = cs.getPropertyValue("--wave");
+  for (let x=0;x<W;x++){ let m=0; const i0 = Math.floor((W-1-x)/W*d.length); for (let k=0;k<step;k+=4){ const v=Math.abs(d[i0+k]||0); if(v>m)m=v; } const h=Math.max(1,m*H*0.95); g.fillRect(x,(H-h)/2,1,h); }
+}
+addEventListener("resize", () => src && words.length && drawWave());
+
+function stats(){
+  const K = keepRanges(), keptS = K.reduce((n,[a,b])=>n+b-a,0), nc = words.filter(w=>w.cut).length;
+  const wpm = words.length / (src.duration/60);
+  $("stats").textContent = `${words.length} מילים · ${wpm.toFixed(0)} מילים לדקה · נמחקו ${nc} · אורך ערוך ${fmt(keptS)} מתוך ${fmt(src.duration)} · זמן תמלול ${tookSec.toFixed(0)}ש`;
+}
+const plain = () => words.filter(w=>!w.cut).map(w=>w.t).join(" ").replace(/\s+([.,?!])/g,"$1");
+function save(name, blob){ const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
+$("copy").onclick = async () => { try { await navigator.clipboard.writeText(plain()); status("הטקסט הועתק"); } catch { status("ההעתקה נחסמה. השתמש בהורד טקסט.", true); } };
+$("dlTxt").onclick = () => save(fileName+"_transcript.txt", new Blob([plain()], {type:"text/plain;charset=utf-8"}));
+$("dlJson").onclick = () => save(fileName+"_words.json", new Blob([JSON.stringify({ model:MODEL, dtype:$("size").value, duration:src.duration, took:tookSec, ua:navigator.userAgent, words }, null, 1)], {type:"application/json"}));
+
+$("dlAudio").onclick = async () => {
+  const b = buildEdited(), sr = b.sampleRate;
+  try {
+    const cfg = { codec:"mp4a.40.2", sampleRate: sr, numberOfChannels: 1, bitrate: 128000 };
+    if (!window.AudioEncoder || !(await AudioEncoder.isConfigSupported(cfg)).supported) throw new Error("no aac");
+    status("מקודד קול…");
+    const mux = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), audio:{ codec:"aac", numberOfChannels:1, sampleRate: sr }, fastStart:"in-memory" });
+    let encErr = null;
+    const enc = new AudioEncoder({ output:(c,m)=>mux.addAudioChunk(c,m), error:e=>encErr=e });
+    enc.configure(cfg);
+    const m = mono(b), F = 1024;
+    for (let i=0;i<m.length;i+=F){ const part = m.subarray(i, Math.min(m.length,i+F));
+      enc.encode(new AudioData({ format:"f32-planar", sampleRate:sr, numberOfFrames:part.length, numberOfChannels:1, timestamp:Math.round(i/sr*1e6), data:part })); }
+    await enc.flush(); enc.close(); if (encErr) throw encErr;
+    mux.finalize(); save(fileName+"_edited.m4a", new Blob([mux.target.buffer], {type:"audio/mp4"})); status("הקול הערוך ירד");
+  } catch (err) { console.warn(err); save(fileName+"_edited.wav", wav(b)); status("ירד כקובץ WAV"); }
+};
+function wav(b){ const m = mono(b), n = m.length, buf = new ArrayBuffer(44+n*2), v = new DataView(buf), sr = b.sampleRate;
+  const w = (o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
+  w(0,"RIFF"); v.setUint32(4,36+n*2,true); w(8,"WAVEfmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,"data"); v.setUint32(40,n*2,true);
+  for (let i=0;i<n;i++) v.setInt16(44+i*2, Math.max(-1,Math.min(1,m[i]))*32767, true);
+  return new Blob([buf], {type:"audio/wav"}); }
+
+// בדיקת ארגז: מילים מוזרקות בלי מודל
+window.__test = async (wordsIn) => { words = wordsIn.map(w=>({...w,cut:false})); render(); $("s3").hidden=false; $("dock").hidden=false; };
+window.__state = () => ({ src: !!src, words: words.length });
+window.__edited = () => { const b = buildEdited(); return { dur: b.duration, ranges: keepRanges() }; };
+</script>
+</body>
+</html>
