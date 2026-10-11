@@ -283,7 +283,7 @@ function drawFrame(g, W, H, t){
   const l=lineAt(t); if(!l) return;
   const st=STYLES[$("style").value], S=Math.round(W*(+$("fsize").value)/100), y=H*(+$("ypos").value)/100;
   g.save(); g.direction="rtl"; g.textBaseline="middle"; g.font=st.font.replace("{S}",S); g.lineJoin="round";
-  const ws=l.idx.map(i=>words[i]), gapW=S*0.28, widths=ws.map(w=>g.measureText(w.t).width);
+  const ws=l.idx.map(i=>words[i]), gapW=S*0.45, widths=ws.map(w=>g.measureText(w.t).width);
   const maxW=W*0.86; let rows=[[]], rw=[0];
   ws.forEach((w,j)=>{ const add=widths[j]+(rows.at(-1).length?gapW:0); if(rw.at(-1)+add>maxW && rows.at(-1).length){ rows.push([]); rw.push(0); } rows.at(-1).push(j); rw[rw.length-1]+=widths[j]+(rows.at(-1).length>1?gapW:0); });
   const lh=S*1.22, y0=y-(rows.length-1)*lh/2;
@@ -291,8 +291,8 @@ function drawFrame(g, W, H, t){
   rows.forEach((r,ri)=>{
     let x=W/2+rw[ri]/2; const yy=y0+ri*lh;
     if (st.box){ g.fillStyle=st.box; const p=S*0.28; roundRect(g, W/2-rw[ri]/2-p, yy-lh/2, rw[ri]+2*p, lh, S*0.22); g.fill(); }
-    r.forEach(j=>{ const w=ws[j], wd=widths[j], active = t>=w.s && t<w.e+0.08, cx=x-wd/2;
-      const s = active ? 1+0.10*Math.sin(Math.min(1,(t-w.s)/0.14)*Math.PI) + 0.06 : 1;
+    r.forEach(j=>{ const w=ws[j], wd=widths[j], nxs=(ws[j+1]?ws[j+1].s:Infinity), active = t>=w.s && t<Math.min(w.e+0.08, nxs), cx=x-wd/2;
+      const s = active ? 1+0.08*Math.sin(Math.min(1,(t-w.s)/0.14)*Math.PI) + 0.04 : 1;
       g.save(); g.translate(cx,yy); g.scale(s*(0.9+0.1*pop), s*(0.9+0.1*pop)); g.textAlign="center";
       if (st.shadow){ g.shadowColor="rgba(0,0,0,.75)"; g.shadowBlur=S*0.35; g.shadowOffsetY=S*0.06; }
       if (st.stroke){ g.lineWidth=S*st.sw; g.strokeStyle=st.stroke; g.strokeText(w.t,0,0); }
@@ -319,9 +319,16 @@ async function runRanges(onFrame, {realtimeAudio}={}){
     if (ac){ srcNode=ac.createBufferSource(); srcNode.buffer=srcFull; srcNode.connect(ac.destination); srcNode.start(0,a,b-a); }
     await vid.play();
     await new Promise(done=>{
+      let fin=false, lastSeen=performance.now();
+      const finish=()=>{ if(fin) return; fin=true; clearInterval(dog); vid.removeEventListener("ended",finish); vid.pause(); done(); };
+      // סוף הסרטון לא תמיד מייצר פריים אחרון: מסיימים גם על ended, וגם אם אין פריים חדש 2 שניות
+      vid.addEventListener("ended",finish);
+      const dog=setInterval(()=>{ if(r.stop || vid.ended || vid.currentTime>=b-0.02 || performance.now()-lastSeen>2000) finish(); },250);
       const step=(now,meta)=>{
+        if (fin) return;
+        lastSeen=performance.now();
         const t=meta.mediaTime;
-        if (r.stop || t>=b-0.001 || vid.ended){ vid.pause(); done(); return; }
+        if (r.stop || t>=b-0.001){ finish(); return; }
         onFrame(t, outOff + (t-a));
         vid.requestVideoFrameCallback(step);
       };
