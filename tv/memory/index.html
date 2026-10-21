@@ -27,7 +27,7 @@ canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
     <a id="full" href="https://raw.githack.com/ironmentshrag/shomer-assets/main/tv/memory/index.html" target="_blank" rel="noopener">▶ גרסה עם דיווח אוטומטי</a>
     <button id="copy" type="button">העתק דוח</button>
     <div id="sent"></div>
-    <div id="ver">גרסה 13 · זיכרון על המסך · מודד את עצמו לבד</div>
+    <div id="ver">גרסה 14 · זיכרון על המסך · מודד את עצמו לבד</div>
   </div>
   <pre id="report">L · memory-tv · מתחיל…</pre>
 </div>
@@ -161,7 +161,8 @@ function drawHud(f){ctx.clearRect(0,0,W,H);ctx.textBaseline='top';ctx.direction=
     ctx.fillText(labels[b],x+w/2,y+h/2);ctx.textBaseline='top';}
 }
 function frame(t){
-  if(lastT){var dt=t-lastT;frameTimes.push(dt);if(frameTimes.length>600)frameTimes.shift();if(dt>50)longFrames++;}
+  if(lastT){var dt=t-lastT;frameTimes.push(dt);if(frameTimes.length>600)frameTimes.shift();if(dt>50)longFrames++;
+    if(MODES[mode]==='heavy'&&dt>800){heavyAborted=true;setMode('normal');}}
   lastT=t;frames++;
   if(frames%60===0){var e=gl.getError();if(e)glErrors++;}
   layout();gl.viewport(0,0,W,H);gl.clearColor(0.03,0.04,0.05,1);gl.clear(gl.COLOR_BUFFER_BIT);
@@ -170,9 +171,9 @@ function frame(t){
     /* חלקיקים */
     gl.useProgram(P_PT);gl.bindBuffer(gl.ARRAY_BUFFER,ptb);var ap=gl.getAttribLocation(P_PT,'a');gl.enableVertexAttribArray(ap);gl.vertexAttribPointer(ap,2,gl.FLOAT,false,0,0);
     gl.uniform1f(up.t,t*0.001);gl.uniform2f(up.asp,W/H,1);gl.uniform1f(up.heavy,m==='heavy'?1:0);
-    gl.drawArrays(gl.POINTS,0,m==='heavy'?NPT*8:NPT);
+    gl.drawArrays(gl.POINTS,0,m==='heavy'?NPT*4:NPT);
     if(m==='heavy'){gl.useProgram(P_Q);gl.bindBuffer(gl.ARRAY_BUFFER,quad);var aq=gl.getAttribLocation(P_Q,'a');gl.enableVertexAttribArray(aq);gl.vertexAttribPointer(aq,2,gl.FLOAT,false,0,0);
-      gl.uniform1f(uq.big,0);gl.uniform1f(uq.iter,24);gl.drawArrays(gl.TRIANGLES,0,6);}
+      gl.uniform1f(uq.big,0);gl.uniform1f(uq.iter,8);gl.drawArrays(gl.TRIANGLES,0,6);}
     /* קלפים */
     gl.useProgram(P_CARD);gl.bindBuffer(gl.ARRAY_BUFFER,quad);var ac=gl.getAttribLocation(P_CARD,'a');gl.enableVertexAttribArray(ac);gl.vertexAttribPointer(ac,2,gl.FLOAT,false,0,0);
     for(var i=0;i<16;i++){var c=cards[i];c.flip+=(c.target-c.flip)*0.18;var r=cardRect(i);
@@ -209,14 +210,14 @@ function move(dx,dy){if(cursor>=16){var b=cursor-16;if(dy<0){cursor=12+Math.min(
   if(c<0||c>3||r<0)return;cursor=r*4+c;}
 var mouseMode=false;
 /* טייס אוטומטי (גרסה 13): אם אין קלט ב־12 השניות הראשונות, הדף מודד לבד: רגיל 45 שניות, ריק 20, כבד 20, ומסכם. */
-var auto=true, autoPlan=[['normal',45],['empty',20],['heavy',20]], autoIdx=-1, autoStart=0, phases=[];
+var auto=true, autoPlan=[['normal',45],['empty',15],['heavy',12]], autoIdx=-1, autoStart=0, phases=[], heavyAborted=false;
 function setMode(m){mode=MODES.indexOf(m);frameTimes=[];longFrames=0;}
 function autoTick(t){
   if(!auto)return;
   if(autoIdx<0){if(t<12000)return;autoIdx=0;autoStart=t;setMode(autoPlan[0][0]);return;}
   var cur=autoPlan[autoIdx],el=(t-autoStart)/1000;
   document.getElementById('sent').textContent='מדידה אוטומטית · '+({normal:'רגיל',empty:'ריק',heavy:'כבד'})[cur[0]]+' · עוד '+Math.max(0,Math.ceil(cur[1]-el))+' שניות';
-  if(el>=cur[1]){phases.push(line(fps()));send('auto-'+cur[0]);autoIdx++;
+  if(el>=cur[1]||(cur[0]==='heavy'&&heavyAborted)){phases.push(line(fps())+(cur[0]==='heavy'&&heavyAborted?' · heavy-aborted':''));send('auto-'+cur[0]);autoIdx++;
     if(autoIdx>=autoPlan.length){auto=false;finalized=true;report=phases.join('\n');rep.textContent=report;setMode('normal');document.getElementById('sent').textContent='המדידה האוטומטית הסתיימה · 3 שורות';return;}
     autoStart=t;setMode(autoPlan[autoIdx][0]);}
 }
