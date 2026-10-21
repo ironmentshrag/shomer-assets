@@ -24,10 +24,10 @@ canvas{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
   <canvas id="gl"></canvas>
   <canvas id="hud"></canvas>
   <div id="bar" dir="rtl">
-    <a id="full" href="https://raw.githack.com/ironmentshrag/shomer-assets/main/tv/memory/index.html" target="_blank" rel="noopener">▶ גרסה עם דיווח אוטומטי</a>
+    <a id="full" href="https://ironmentshrag.github.io/shomer-assets/tv/memory/index.html" target="_blank" rel="noopener">▶ גרסה עם דיווח אוטומטי</a>
     <button id="copy" type="button">העתק דוח</button>
     <div id="sent"></div>
-    <div id="ver">גרסה 14 · זיכרון על המסך · מודד את עצמו לבד</div>
+    <div id="ver">גרסה 15 · זיכרון על המסך · מודד את עצמו לבד</div>
   </div>
   <pre id="report">L · memory-tv · מתחיל…</pre>
 </div>
@@ -42,7 +42,7 @@ var MODES=['normal','heavy','empty'], mode=0;
 var cols=4, rows=4, cards=[], cursor=0, open=[], matched=0, moves=0, lock=0, won=false;
 var started=performance.now(), finalized=false, report='';
 var RELAY='https://odiron-relayd-lab-936c.ironmentsh.workers.dev/tv-mem', sentN=0, lastSend=0;
-function send(tag){try{var body=(tag?tag+' ':'')+report;var x=new XMLHttpRequest();x.open('POST',RELAY,true);x.timeout=8000;
+function send(tag){try{var body='@'+location.host+' '+(tag?tag+' ':'')+report;var x=new XMLHttpRequest();x.open('POST',RELAY,true);x.timeout=8000;
   x.onload=function(){sentN++;document.getElementById('sent').textContent='נשלח לממסר ✔ '+sentN;};
   x.onerror=x.ontimeout=function(){document.getElementById('sent').textContent='מכאן הדוח לא נשלח. פתח את הגרסה עם הדיווח האוטומטי';};x.send(body);}catch(e){}}
 /* מחולל אקראי משלי, כדי שסידור הקלפים יחזור על עצמו לפי זרע */
