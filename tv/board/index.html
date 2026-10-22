@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IRON לוח בוקר</title>
+<style>
+  :root{--bg:#0b0d10;--ink:#e8eef2;--dim:#8a98a4;--gold:#f0b64a;--cyan:#39d0dd;--line:#1a222b}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+  body{display:grid;grid-template-rows:auto 1fr auto;padding:3vh 4vw;box-sizing:border-box;gap:2vh}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;gap:3vw}
+  .clock{font-size:14vw;font-weight:700;line-height:1;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+  .dates{text-align:left;direction:rtl}
+  .day{font-size:4.2vw;font-weight:700;color:var(--gold)}
+  .greg{font-size:2.6vw;color:var(--ink)}
+  .heb{font-size:2.6vw;color:var(--cyan)}
+  .mid{display:grid;grid-template-columns:1fr 1.3fr;gap:3vw;min-height:0}
+  .card{background:#10151b;border:1px solid var(--line);border-radius:1.5vw;padding:2.2vw;min-height:0;overflow:hidden}
+  .card h2{margin:0 0 1.2vw;font-size:2.2vw;color:var(--dim);font-weight:600}
+  .wx{display:flex;align-items:center;gap:2vw}
+  .temp{font-size:8vw;font-weight:700;line-height:1}
+  .desc{font-size:3vw;font-weight:600}
+  .wxrow{display:flex;gap:2.5vw;margin-top:1.5vw;font-size:2.2vw;color:var(--dim)}
+  .wxrow b{color:var(--ink);font-weight:600}
+  ul{list-style:none;margin:0;padding:0}
+  li{font-size:3.1vw;line-height:1.35;padding:.6vw 0;border-bottom:1px solid var(--line)}
+  li:before{content:"◂ ";color:var(--gold)}
+  .empty{color:var(--dim);font-size:2.6vw}
+  .foot{display:flex;justify-content:space-between;font-size:1.6vw;color:var(--dim)}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="clock" id="clock">--:--</div>
+    <div class="dates">
+      <div class="day" id="day"></div>
+      <div class="greg" id="greg"></div>
+      <div class="heb" id="heb"></div>
+    </div>
+  </div>
+  <div class="mid">
+    <div class="card">
+      <h2>מזג האוויר · בית שמש</h2>
+      <div class="wx"><div class="temp" id="temp">--°</div><div class="desc" id="desc">טוען…</div></div>
+      <div class="wxrow"><span>היום <b id="hilo">--</b></span><span>גשם <b id="rain">--</b></span></div>
+      <div class="wxrow"><span>זריחה <b id="rise">--:--</b></span><span>שקיעה <b id="set">--:--</b></span></div>
+    </div>
+    <div class="card">
+      <h2>הבוקר</h2>
+      <ul id="tasks"><li class="empty">שלח הודעה, והיא תופיע כאן תוך דקה</li></ul>
+    </div>
+  </div>
+  <div class="foot"><span>IRON לוח · מתעדכן לבד</span><span id="stamp"></span></div>
+<script>
+/* לוח בוקר · 22/10/2026 · בלי ספריות, בלי קלט. מקורות: שעון הטלוויזיה, Intl של הדפדפן לתאריך עברי, open-meteo (חינמי, בלי מפתח), ותיבת הדואר (הממסר) למשימות. */
+var RELAY='https://odiron-relayd-lab-936c.ironmentsh.workers.dev/';
+var LAT=31.745, LON=34.988, TZ='Asia/Jerusalem';
+var DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+var MONTHS=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function two(n){return (n<10?'0':'')+n}
+function tick(){
+  var d=new Date();
+  document.getElementById('clock').textContent=two(d.getHours())+':'+two(d.getMinutes());
+  document.getElementById('day').textContent='יום '+DAYS[d.getDay()];
+  document.getElementById('greg').textContent=d.getDate()+' ב'+MONTHS[d.getMonth()]+' '+d.getFullYear();
+  try{ document.getElementById('heb').textContent=new Intl.DateTimeFormat('he-IL-u-ca-hebrew',{day:'numeric',month:'long',year:'numeric'}).format(d); }
+  catch(e){ document.getElementById('heb').textContent=''; }
+}
+tick(); setInterval(tick,5000);
+
+var WX={0:'בהיר',1:'בהיר בעיקר',2:'מעונן חלקית',3:'מעונן',45:'ערפל',48:'ערפל',51:'טפטוף',53:'טפטוף',55:'טפטוף',56:'טפטוף קפוא',57:'טפטוף קפוא',
+  61:'גשם קל',63:'גשם',65:'גשם חזק',66:'גשם קפוא',67:'גשם קפוא',71:'שלג קל',73:'שלג',75:'שלג כבד',77:'שלג',80:'ממטרים',81:'ממטרים',82:'ממטרים חזקים',85:'ממטרי שלג',86:'ממטרי שלג',95:'סופת רעמים',96:'רעמים וברד',99:'רעמים וברד'};
+function hm(iso){var m=/T(\d\d:\d\d)/.exec(iso||'');return m?m[1]:'--:--'}
+function weather(){
+  var u='https://api.open-meteo.com/v1/forecast?latitude='+LAT+'&longitude='+LON+'&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone='+encodeURIComponent(TZ)+'&forecast_days=1';
+  var x=new XMLHttpRequest(); x.open('GET',u,true); x.timeout=12000;
+  x.onload=function(){ try{ var j=JSON.parse(x.responseText);
+      document.getElementById('temp').textContent=Math.round(j.current.temperature_2m)+'°';
+      document.getElementById('desc').textContent=WX[j.current.weather_code]||('קוד '+j.current.weather_code);
+      document.getElementById('hilo').textContent=Math.round(j.daily.temperature_2m_max[0])+'° / '+Math.round(j.daily.temperature_2m_min[0])+'°';
+      document.getElementById('rain').textContent=(j.daily.precipitation_probability_max[0]==null?'--':j.daily.precipitation_probability_max[0]+'%');
+      document.getElementById('rise').textContent=hm(j.daily.sunrise[0]); document.getElementById('set').textContent=hm(j.daily.sunset[0]);
+    }catch(e){ document.getElementById('desc').textContent='אין מזג אוויר'; } };
+  x.onerror=x.ontimeout=function(){ document.getElementById('desc').textContent='אין מזג אוויר'; };
+  x.send();
+}
+weather(); setInterval(weather,30*60*1000);
+
+/* משימות: ההודעה האחרונה בנושא tv-board, שורה = פריט. ריקה = למחוק את הלוח. */
+var lastId='';
+function tasks(){
+  var x=new XMLHttpRequest(); x.open('GET',RELAY+'tv-board/json?since=all&_='+Date.now(),true); x.timeout=12000;
+  x.onload=function(){ var lines=x.responseText.split('\n'), last=null;
+    for(var i=lines.length-1;i>=0;i--){ if(lines[i].trim()){ try{ last=JSON.parse(lines[i]); }catch(e){} if(last) break; } }
+    var ul=document.getElementById('tasks');
+    if(!last){ return; }
+    if(last.id===lastId) return; lastId=last.id;
+    var items=String(last.message||'').split('\n').map(function(s){return s.trim()}).filter(Boolean);
+    ul.innerHTML='';
+    if(!items.length){ var e=document.createElement('li'); e.className='empty'; e.textContent='הלוח ריק'; ul.appendChild(e); return; }
+    items.forEach(function(s){ var li=document.createElement('li'); li.textContent=s; ul.appendChild(li); });
+    document.getElementById('stamp').textContent='עודכן '+two(new Date().getHours())+':'+two(new Date().getMinutes());
+  };
+  x.send();
+}
+tasks(); setInterval(tasks,60*1000);
+
+/* דיווח חד־פעמי: הלוח עלה, ובאיזה דפדפן (שורת ה־UA מספרת) */
+try{ var r=new XMLHttpRequest(); r.open('POST',RELAY+'tv-mem',true);
+  r.send('@board loaded · '+window.innerWidth+'x'+window.innerHeight+' · dpr='+(window.devicePixelRatio||1)+' · '+navigator.userAgent); }catch(e){}
+</script>
+</body>
+</html>
