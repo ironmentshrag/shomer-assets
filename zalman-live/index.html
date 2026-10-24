@@ -49,12 +49,14 @@ body.live #start{display:none}
 #tag{position:fixed;top:calc(max(10px,env(safe-area-inset-top)) + 4px);inset-inline-start:14px;font-size:12px;color:var(--mute);z-index:3}
 #face{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font:600 18px system-ui;color:#ffd2b0;text-shadow:0 1px 4px #000;pointer-events:none}
 #cstat{font-size:11px;color:var(--mute)}
+#err{position:fixed;left:12px;right:12px;top:40%;background:#3a0f0f;color:#ffd7d7;border:1px solid #ff5d5d;border-radius:12px;padding:12px 14px;font:15px/1.5 system-ui;z-index:6}
+body.cam #pip{display:block}
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="gl"></canvas><canvas id="ov"></canvas></div>
 <div id="hud"><div id="brand"></div><div id="stats"></div></div>
-<div id="tag">מראה חיה · הכל בטלפון, שום דבר לא נשלח</div><video id="cam" playsinline muted></video><canvas id="pip"></canvas><div id="face"></div><button id="start">▶ פתח מצלמה</button>
+<div id="tag">מראה חיה · הכל בטלפון, שום דבר לא נשלח</div><video id="cam" playsinline muted></video><canvas id="pip"></canvas><div id="face"></div><div id="err" hidden></div><button id="start">▶ פתח מצלמה</button>
 <div id="bar">
   <div id="tl"><div id="marks"></div><input id="time" type="range" min="0" max="14" step="0.001" value="0" aria-label="ציר זמן"></div>
   <div class="row">
@@ -62,7 +64,7 @@ body.live #start{display:none}
     <button data-lay="skin">עור</button><button data-lay="both" class="on">שניהם</button><button data-lay="anat">שלד</button>
     <button id="ctl">בקרים</button>
     <button id="mus">שרירים</button>
-    <button id="cal">כיול</button><button id="pipb">מצלמה</button><button id="mir" class="on">מראה</button><span id="cstat"></span><button id="code">קוד</button>
+    <button id="cal">כיול</button><button id="pipb">מצלמה</button><button id="mir" class="on">מראה</button><button id="send">יומן ל־Claude</button><span id="cstat"></span><button id="code">קוד</button>
     <label id="exw" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)">הגזמה <input id="exag" type="range" min="1" max="5" step="0.1" value="1" style="width:110px;accent-color:var(--accent);direction:ltr"><output id="exo" style="direction:ltr;min-width:2.4em">×1.0</output></label>
   </div>
 </div>
@@ -1280,18 +1282,34 @@ function tick() {
       const a = haveSm ? 0.55 : 1;
       for (const n in idx) { const i = idx[n]; if (n === 'נשימה') continue; live[i] = 1; sm[i] = haveSm ? sm[i] + (liveVec[i] - sm[i]) * a : liveVec[i]; }
       if (idx['מצמוץ'] != null) sm[idx['מצמוץ']] = liveVec[idx['מצמוץ']]; // מצמוץ בלי החלקה
-      haveSm = true; $('face').textContent = '';
+      haveSm = true; $('face').textContent = ''; if (nDet % 2 === 0) { REC.push([Math.round(ts), ...Array.from(sm, v => Math.round(v * 100) / 100)]); if (REC.length > 3600) REC.splice(0, 1800); }
     } else { $('face').textContent = 'לא רואה פנים'; }
     if (nDet % 15 === 0) $('cstat').textContent = (baseline ? 'כויל ✓ · ' : '') + 'זיהוי ' + detMs.toFixed(0) + ' ms';
   }
   requestAnimationFrame(tick);
 }
+// שלבים גלויים ושגיאה שלא נמחקת: כל שלב כותב על הכפתור עצמו
+const step = t => { $('start').textContent = t; $('cstat').textContent = t; };
+const fail = (where, e) => { const n = (e && e.name) || '', m = (e && e.message) || String(e);
+  const why = n === 'NotAllowedError' ? 'הדפדפן לא קיבל אישור למצלמה. בכרום: מנעול ליד הכתובת ← הרשאות ← מצלמה ← אפשר, ואז לרענן.'
+    : n === 'NotFoundError' ? 'לא נמצאה מצלמה במכשיר.' : n === 'NotReadableError' ? 'המצלמה תפוסה באפליקציה אחרת. לסגור אותה ולנסות שוב.'
+    : !navigator.mediaDevices ? 'הדף לא נפתח בכתובת מאובטחת (https), ולכן אין גישה למצלמה.' : '';
+  $('err').hidden = false; $('err').textContent = 'נעצר ב' + where + ': ' + (why || (n + ' ' + m)); LOG.push({ t: Date.now(), where, name: n, msg: m });
+  $('start').disabled = false; $('start').textContent = '▶ נסה שוב'; };
+const LOG = [], REC = [];
 $('start').onclick = async () => {
-  $('start').disabled = true;
-  try { await loadModel(); await startCam(); running = true; document.body.classList.add('live'); tick(); const saved = LS.get('zalman_live_cal'); if (saved) { try { baseline = JSON.parse(saved); $('cstat').textContent = 'כיול קודם נטען'; } catch (e) {} } else calibrate(); if (!playing) { playing = true; $('play').textContent = '⏸'; requestAnimationFrame(frame); } }
-  catch (e) { $('cstat').textContent = 'לא נפתח: ' + (e.message || e); $('start').disabled = false; }
+  $('start').disabled = true; $('err').hidden = true;
+  try { step('פותח מצלמה…'); await startCam(); document.body.classList.add('cam'); } catch (e) { return fail('פתיחת המצלמה', e); }
+  try { step('טוען את קורא הפנים (17 מגה, פעם ראשונה לוקח זמן)…'); await loadModel(); } catch (e) { return fail('טעינת קורא הפנים', e); }
+  try { running = true; document.body.classList.add('live'); tick(); const saved = LS.get('zalman_live_cal'); if (saved) { try { baseline = JSON.parse(saved); $('cstat').textContent = 'כיול קודם נטען'; } catch (e) {} } else calibrate(); if (!playing) { playing = true; $('play').textContent = '⏸'; requestAnimationFrame(frame); } }
+  catch (e) { fail('ההפעלה', e); }
 };
-$('cal').onclick = calibrate;
+$('cal').onclick = () => { if (!running) { $('cstat').textContent = 'קודם "פתח מצלמה"'; return; } calibrate(); };
+// יומן לשליחה ל-Claude: מספרים בלבד, בלי תמונה
+$('send').onclick = () => {
+  const blob = new Blob([JSON.stringify({ at: new Date().toISOString(), ua: navigator.userAgent, baseline, detMs: Math.round(detMs), log: LOG, channels: C.channels, rec: REC.slice(-1800) })], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'zalman-live-' + Date.now() + '.json'; document.body.append(a); a.click(); a.remove();
+};
 $('pipb').onclick = () => document.body.classList.toggle('nopip');
 $('mir').onclick = () => { mirror = !mirror; $('mir').classList.toggle('on', mirror); };
 
