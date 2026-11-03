@@ -48,7 +48,7 @@ button:disabled { opacity: .55; cursor: progress; }
 <main>
   <header>
     <h1>סורק המצלמה Y2</h1>
-    <p class="lede">הדף מחפש את המצלמה בבלוטות' ובודק אם יש לה ערוץ הגדרה. הוא לא שולח לה כלום ולא משנה בה כלום. בסוף הוא מעביר את התוצאה ל-Claude לבד.</p>
+    <p class="lede">הדף מחפש את המצלמה בבלוטות' ובודק אם יש לה ערוץ הגדרה. הוא לא שולח לה כלום ולא משנה בה כלום. כל שלב נשלח ל-Claude לבד, תוך כדי.</p>
   </header>
 
   <section class="panel" aria-labelledby="before">
@@ -71,8 +71,7 @@ button:disabled { opacity: .55; cursor: progress; }
   <section class="panel" aria-labelledby="res" aria-live="polite">
     <div class="label" id="res">מה נמצא</div>
     <p id="status">עוד לא חיפשנו.</p>
-    <a class="btn" id="sendBtn" href="#" hidden>שלח את התוצאה ל-Claude</a>
-    <p class="hint" id="sendHint" hidden>הדף יעבור לבד לעמוד של Claude בעוד רגע. אם זה לא קרה, לוחצים על הכפתור.</p>
+    <p class="hint" id="sent">כל שלב נשלח ל-Claude לבד. אין צורך לעבור לשום עמוד.</p>
     <pre class="readout" id="log">—</pre>
   </section>
 
@@ -92,29 +91,35 @@ button:disabled { opacity: .55; cursor: progress; }
   function errText(e) { return (e && e.name ? e.name : 'Error') + ': ' + (e && e.message ? e.message : String(e)); }
   function busy(on) { $('btnCam').disabled = on; $('btnAll').disabled = on; }
 
-  // Compact report -> UTF-8 -> hex, so it survives as a plain "#r-..." name in the artifact link.
-  function toHex(str) {
-    var b = new TextEncoder().encode(str), out = '';
-    for (var i = 0; i < b.length; i++) out += (b[i] < 16 ? '0' : '') + b[i].toString(16);
-    return out;
+  // Live reports go to Iron's own relay (Cloudflare Worker + D1); Claude reads them from there.
+  var RELAY = 'https://odiron-relayd-lab-936c.ironmentsh.workers.dev/iron-cam-y2';
+  var runId = Math.random().toString(36).slice(2, 8);
+  function send(stage, data) {
+    var body = JSON.stringify(Object.assign({ run: runId, stage: stage, t: new Date().toISOString(),
+      chrome: (navigator.userAgent.match(/Chrome\/[\d.]+/) || [''])[0] }, data || {}));
+    function post(left) {
+      fetch(RELAY, { method: 'POST', body: body, keepalive: true, mode: 'cors' }).then(function (r) {
+        if (!r.ok && left > 0) return setTimeout(function () { post(left - 1); }, 1500);
+        $('sent').textContent = r.ok ? 'הדוחות נשלחים ל-Claude תוך כדי (אחרון: ' + stage + ').' : 'שליחה ל-Claude נכשלה. צלם את המסך ושלח.';
+      }, function () {
+        if (left > 0) return setTimeout(function () { post(left - 1); }, 1500);
+        $('sent').textContent = 'שליחה ל-Claude נכשלה. צלם את המסך ושלח.';
+      });
+    }
+    try { post(2); } catch (e) {}
   }
-  function clip(s, n) { s = String(s == null ? '' : s).replace(/[|\n]/g, ' '); return s.length > n ? s.slice(0, n) : s; }
-
-  function handOff(info) {
-    var chars = (info.chars || []).map(function (c) { return c.uuid.slice(4, 8) + ':' + c.p; }).join(',');
-    var line = ['v1', info.mode, info.stage, clip(info.err, 90), clip(info.name, 40), info.fff9 ? '1' : '0',
-      info.connected ? '1' : '0', clip(chars, 80), String(info.avail), clip(navigator.userAgent.match(/Chrome\/[\d.]+/) || '', 24)].join('|');
-    var url = BACK + '#r-' + toHex(line);
-    var a = $('sendBtn'); a.href = url; a.hidden = false; $('sendHint').hidden = false;
-    setTimeout(function () { location.href = url; }, 2500);
+  function withTimeout(p, ms, label) {
+    return Promise.race([p, new Promise(function (_, rej) {
+      setTimeout(function () { var e = new Error(label + ' timeout ' + ms + 'ms'); e.name = 'Timeout'; rej(e); }, ms);
+    })]);
   }
 
   async function scan(mode) {
-    lines = [];
+    lines = []; send('start', { mode: mode });
     var info = { mode: mode, stage: 'start' };
     if (!('bluetooth' in navigator)) {
       status('בדפדפן הזה אין בלוטות\'. פתח את הדף ב-Chrome.', 'bad');
-      info.stage = 'no-api'; handOff(info); return;
+      info.stage = 'no-api'; send('no-api'); return;
     }
     busy(true);
     try { info.avail = await navigator.bluetooth.getAvailability(); } catch (e) { info.avail = 'err'; }
@@ -123,24 +128,37 @@ button:disabled { opacity: .55; cursor: progress; }
     try {
       status('מחפש… בחר בחלון שנפתח.', 'warn');
       var opts = mode === 'camera'
-        ? { filters: [{ namePrefix: 'A9' }, { namePrefix: 'a9' }, { namePrefix: 'NAX' }, { namePrefix: 'Nax' }, { services: [0xfff9] }], optionalServices: [0xfff9] }
-        : { acceptAllDevices: true, optionalServices: [0xfff9] };
+        ? { filters: [{ namePrefix: 'A9' }, { namePrefix: 'a9' }, { namePrefix: 'NAX' }, { namePrefix: 'Nax' }, { services: [0xfff9] }], optionalServices: [0xfff9, 0x180a] }
+        : { acceptAllDevices: true, optionalServices: [0xfff9, 0x180a] };
       device = await navigator.bluetooth.requestDevice(opts);
     } catch (e) {
       info.stage = 'request'; info.err = errText(e);
       log('requestDevice → ' + info.err);
       status(e && e.name === 'NotFoundError' ? 'לא נבחר מכשיר, או שהמצלמה לא הופיעה בחלון.' : 'החיפוש נכשל.', 'bad');
-      busy(false); handOff(info); return;
+      busy(false); send('request-fail', { mode: mode, err: info.err, avail: info.avail }); return;
     }
     info.name = device.name || '';
     log('device: "' + info.name + '"');
-    try {
-      status('מתחבר ל"' + (info.name || 'ללא שם') + '"…', 'warn');
-      var server = await device.gatt.connect();
-      info.connected = true; log('connected: yes');
+    send('picked', { mode: mode, name: info.name, avail: info.avail });
+    var server = null;
+    for (var attempt = 1; attempt <= 2 && !server; attempt++) {
       try {
-        var svc = await server.getPrimaryService(0xfff9);
-        var chars = await svc.getCharacteristics();
+        status('מתחבר ל"' + (info.name || 'ללא שם') + '"… ניסיון ' + attempt + ' מתוך 2', 'warn');
+        var t0 = Date.now();
+        server = await withTimeout(device.gatt.connect(), 25000, 'connect');
+        info.connected = true; info.connectMs = Date.now() - t0;
+        log('connected: yes (' + info.connectMs + ' ms, attempt ' + attempt + ')');
+        send('connected', { attempt: attempt, ms: info.connectMs });
+      } catch (e) {
+        info.err = errText(e); log('connect ' + attempt + ' → ' + info.err);
+        send('connect-fail', { attempt: attempt, err: info.err });
+        try { device.gatt.disconnect(); } catch (x) {}
+      }
+    }
+    if (server) {
+      try {
+        var svc = await withTimeout(server.getPrimaryService(0xfff9), 15000, 'service');
+        var chars = await withTimeout(svc.getCharacteristics(), 15000, 'chars');
         info.fff9 = true;
         info.chars = chars.map(function (c) {
           var p = ''; var pr = c.properties;
@@ -149,13 +167,24 @@ button:disabled { opacity: .55; cursor: progress; }
         });
         info.chars.forEach(function (c) { log('  ' + c.uuid + '  [' + c.p + ']'); });
       } catch (e) { info.fff9 = false; info.err = errText(e); log('service FFF9 → ' + info.err); }
+      try {
+        var dis = await withTimeout(server.getPrimaryService(0x180a), 8000, 'devinfo');
+        var dec = new TextDecoder(); info.devinfo = {};
+        var ids = { model: 0x2a24, serial: 0x2a25, firmware: 0x2a26, hardware: 0x2a27, software: 0x2a28, maker: 0x2a29 };
+        for (var k in ids) {
+          try { var ch = await dis.getCharacteristic(ids[k]); var v = await withTimeout(ch.readValue(), 5000, k); info.devinfo[k] = dec.decode(v.buffer); } catch (x) {}
+        }
+        log('device info: ' + JSON.stringify(info.devinfo));
+      } catch (e) { log('device info service: none'); }
       try { server.disconnect(); } catch (e) {}
-    } catch (e) { info.connected = false; info.err = errText(e); log('connect → ' + info.err); }
+    }
     info.stage = 'done';
+    send('done', { name: info.name, connected: !!info.connected, connectMs: info.connectMs || null, fff9: !!info.fff9,
+      chars: info.chars || [], devinfo: info.devinfo || null, err: info.err || null });
     if (info.fff9) status('נמצאה! "' + (info.name || 'ללא שם') + '" עם ערוץ ההגדרה של המצלמה.', 'ok');
     else if (info.connected) status('"' + (info.name || 'ללא שם') + '" הוא כנראה מכשיר אחר: אין לו ערוץ הגדרה.', 'warn');
-    else status('לא הצלחתי להתחבר ל"' + (info.name || 'ללא שם') + '".', 'bad');
-    busy(false); handOff(info);
+    else status('לא הצלחתי להתחבר ל"' + (info.name || 'ללא שם') + '". הדוח נשלח ל-Claude.', 'bad');
+    busy(false);
   }
 
   $('btnCam').addEventListener('click', function () { scan('camera'); });
