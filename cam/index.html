@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>סורק המצלמה Y2</title>
+<title>סורק המצלמה Y2 · v3</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Hebrew:wght@400;600&family=IBM+Plex+Mono:wght@400;500&family=Secular+One&display=swap">
 <style>
 /* Layout: one narrow column, a field instrument: checklist, two scan buttons, live readout, automatic hand-off back to Claude */
@@ -166,7 +166,15 @@ button:disabled { opacity: .55; cursor: progress; }
           return { uuid: c.uuid, p: p };
         });
         info.chars.forEach(function (c) { log('  ' + c.uuid + '  [' + c.p + ']'); });
-      } catch (e) { info.fff9 = false; info.err = errText(e); log('service FFF9 → ' + info.err); }
+      } catch (e) {
+        info.fff9 = false; info.err = errText(e); log('service FFF9 → ' + info.err);
+        send('service-fail', { err: info.err });
+        try {
+          var all = await withTimeout(server.getPrimaryServices(), 15000, 'services');
+          info.services = all.map(function (x) { return x.uuid; });
+          log('allowed services: ' + info.services.join(', '));
+        } catch (e2) { log('all services → ' + errText(e2)); }
+      }
       try {
         var dis = await withTimeout(server.getPrimaryService(0x180a), 8000, 'devinfo');
         var dec = new TextDecoder(); info.devinfo = {};
@@ -180,7 +188,7 @@ button:disabled { opacity: .55; cursor: progress; }
     }
     info.stage = 'done';
     send('done', { name: info.name, connected: !!info.connected, connectMs: info.connectMs || null, fff9: !!info.fff9,
-      chars: info.chars || [], devinfo: info.devinfo || null, err: info.err || null });
+      chars: info.chars || [], services: info.services || null, devinfo: info.devinfo || null, err: info.err || null });
     if (info.fff9) status('נמצאה! "' + (info.name || 'ללא שם') + '" עם ערוץ ההגדרה של המצלמה.', 'ok');
     else if (info.connected) status('"' + (info.name || 'ללא שם') + '" הוא כנראה מכשיר אחר: אין לו ערוץ הגדרה.', 'warn');
     else status('לא הצלחתי להתחבר ל"' + (info.name || 'ללא שם') + '". הדוח נשלח ל-Claude.', 'bad');
