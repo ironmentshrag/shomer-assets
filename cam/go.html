@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#111111">
+<title>IRON מצלמה</title>
+<style>
+/* IRON מצלמה · דף קבוע · 0.2 · 08/11/2026 (0.2: עובר רק לכתובת חתומה בקוד)
+   הדף לא מכיל שום סוד. הנושא והמפתח יושבים אחרי הסימן # בסימנייה של הטלפון — החלק הזה לא נשלח לשום שרת.
+   הדף שואל את הממסר מה הכתובת העדכנית של התעלה מהסטיק, ומעביר אליה. */
+:root{--bg:#111;--fg:#eee;--dim:#999;--ok:#7bd88f;--bad:#ff8a7a}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f4f4f4;--fg:#111;--dim:#555;--ok:#1d7a35;--bad:#b3261e}}
+:root[data-theme="dark"]{--bg:#111;--fg:#eee;--dim:#999}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+main{max-width:420px;margin:0 auto;padding:48px 16px;text-align:center}
+h1{font-size:22px;margin:0 0 20px}
+#msg{font-size:17px;line-height:1.6}
+#sub{font-size:14px;color:var(--dim);margin-top:14px;line-height:1.6}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+button{margin-top:22px;font-size:16px;padding:10px 22px;border-radius:10px;border:1px solid var(--dim);background:transparent;color:var(--fg)}
+</style>
+</head>
+<body>
+<main>
+  <h1>IRON מצלמה</h1>
+  <div id="msg">מחפש את המצלמה…</div>
+  <div id="sub"></div>
+  <button id="again" hidden>לנסות שוב</button>
+</main>
+<script>
+(function () {
+  var RELAY = 'https://odiron-relayd-lab-936c.ironmentsh.workers.dev';
+  var MAX_AGE = 3 * 3600;
+  var msg = document.getElementById('msg'), sub = document.getElementById('sub'), again = document.getElementById('again');
+  function say(t, cls, s) { msg.textContent = t; msg.className = cls || ''; sub.textContent = s || ''; }
+
+  var key = (location.hash || '').slice(1);
+  try {
+    if (key) localStorage.setItem('iron-cam-key', key);
+    else key = localStorage.getItem('iron-cam-key') || '';
+  } catch (e) {}
+  var dot = key.indexOf('.');
+  var topic = dot > 0 ? key.slice(0, dot) : '';
+  var token = dot > 0 ? key.slice(dot + 1) : '';
+  if (!/^iron-link-[0-9a-f]{16}$/.test(topic) || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) {
+    say('הקישור חסר את המפתח.', 'bad', 'פתח את הקישור המלא ששלחת לעצמך (עם הסימן # והמשך).');
+    return;
+  }
+
+  function latest(text) {
+    var lines = text.split('\n'), now = Date.now() / 1000, out = [];
+    for (var i = lines.length - 1; i >= 0; i--) {
+      try {
+        var m = JSON.parse(lines[i]);
+        var d = JSON.parse(m.message || '{}');
+        if (d.url && d.sig && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(d.url) && now - (m.time || 0) < MAX_AGE)
+          out.push({ url: d.url, sig: d.sig, age: Math.round((now - m.time) / 60) });
+      } catch (e) {}
+    }
+    return out;   // מהחדש לישן
+  }
+
+  // הסטיק חותם על הכתובת עם הקוד. הדף מחזיק את הקוד, ולכן עובר רק לכתובת שהסטיק באמת שלח.
+  function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
+  function signed(list) {
+    var enc = new TextEncoder();
+    return crypto.subtle.importKey('raw', enc.encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      .then(function (k) {
+        return Promise.all(list.map(function (l) { return crypto.subtle.sign('HMAC', k, enc.encode(l.url)).then(function (s) { return hex(s) === l.sig ? l : null; }); }));
+      })
+      .then(function (r) { for (var i = 0; i < r.length; i++) if (r[i]) return r[i]; return null; });
+  }
+
+  var timer = null;
+  function go() {
+    again.hidden = true;
+    say('מחפש את המצלמה…');
+    fetch(RELAY + '/' + topic + '/json?since=all', { cache: 'no-store', referrerPolicy: 'no-referrer' })
+      .then(function (r) { if (!r.ok) throw new Error('ממסר ' + r.status); return r.text(); })
+      .then(function (t) { return signed(latest(t)); })
+      .then(function (l) {
+        if (!l) {
+          say('הסטיק לא דיווח בשלוש השעות האחרונות.', 'bad', 'ייתכן שהוא כבוי, בלי אינטרנט, או שהמצלמה צריכה ריסט. בודק שוב כל 20 שניות.');
+          again.hidden = false;
+          timer = setTimeout(go, 20000);
+          return;
+        }
+        say('נמצא. עובר לווידאו…', 'ok', 'דיווח אחרון לפני ' + l.age + ' דקות');
+        location.replace(l.url + '/?t=' + encodeURIComponent(token));
+      })
+      .catch(function (e) {
+        say('אין קשר לממסר.', 'bad', String(e.message || e) + ' · בודק שוב כל 20 שניות.');
+        again.hidden = false;
+        timer = setTimeout(go, 20000);
+      });
+  }
+  again.onclick = function () { clearTimeout(timer); go(); };
+  go();
+})();
+</script>
+</body>
+</html>
